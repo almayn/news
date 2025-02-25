@@ -17,8 +17,7 @@ export default function NewsDetails() {
   
   const [news, setNews] = useState<NewsItem | null>(null);
   const [isAdmin, setIsAdmin] = useState(false); // التحقق من تسجيل الدخول
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const router = useRouter();
+  const router = useRouter();
   const params = useParams();
   const id = params.id;
 
