@@ -15,7 +15,7 @@ interface NewsItem {
 
 export default function Archive() {
   const [newsList, setNewsList] = useState<NewsItem[]>([]);
-  const router = useRouter();
+  
 
   useEffect(() => {
     const fetchNews = async () => {

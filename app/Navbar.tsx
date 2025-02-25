@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import ar from 'date-fns/locale/ar-SA';
+import { arSA } from 'date-fns/locale';
 
 export default function Navbar() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function Navbar() {
     router.push('/');
   };
 
-  const formattedDate: string = format(new Date(), 'EEEE, d MMMM yyyy', { locale: ar });
+  const formattedDate = format(new Date(), 'EEEE, d MMMM yyyy', { locale: arSA });
 
   return (
     <nav className="bg-blue-600 text-white py-4 px-6 flex items-center justify-between">

@@ -1,10 +1,19 @@
 // app/page.tsx
 'use client';
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { supabase } from '../lib/supabaseClient';
+interface NewsItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  image_url?: string;
+  content: string;
+  created_at: string;
+}
 
 export default function Home() {
-  const [news, setNews] = useState<any[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
   const isAdmin = typeof window !== 'undefined' && localStorage.getItem('isAdmin') === 'true'; // التحقق من تسجيل الدخول
 
   useEffect(() => {
@@ -54,11 +63,14 @@ export default function Home() {
               {/* الصورة بتنسيق أفضل */}
               {item.image_url && (
                 <div className="w-full h-[250px] bg-gray-100 mt-2 rounded-lg overflow-hidden flex justify-center items-center">
-                  <img
-                    src={item.image_url}
-                    alt={item.title}
-                    className="max-w-full max-h-full object-contain"
-                  />
+                 <Image
+  src={item.image_url}
+  alt={item.title}
+  width={600} // حدد العرض
+  height={400} // حدد الارتفاع
+  className="object-contain"
+  priority // هذا يساعد في تحميل الصورة الرئيسية بسرعة
+/>
                 </div>
               )}
               {/* صف يحتوي على كلمة "الماس"، تاريخ النشر، وزر المشاركة والتحرير */}
