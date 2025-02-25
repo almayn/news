@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@netlify/plugin-nextjs": "^5.9.4",
     "@supabase/supabase-js": "^2.48.1",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
