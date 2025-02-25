@@ -1,27 +1,26 @@
 // app/archive/[id]/page.tsx
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '../../../lib/supabaseClient';
 
-export default function NewsDetails() {
-  interface NewsItem {
-    id: string;
-    title: string;
-    subtitle?: string; // اختياري
-    content: string;
-    image_url?: string; // اختياري
-    created_at: string;
-  }
-  
-  const [news, setNews] = useState<NewsItem | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false); // التحقق من تسجيل الدخول
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const router = useRouter();
-const params = useParams();
-const id = params.id;
+interface NewsItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  content: string;
+  image_url?: string;
+  created_at: string;
+}
 
+export default function NewsDetails() {
+  const [news, setNews] = useState<NewsItem | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const params = useParams();
+  const id = params.id;
+
+  // جلب تفاصيل الخبر والتحقق من تسجيل الدخول
   useEffect(() => {
     // التحقق من تسجيل الدخول
     if (typeof window !== 'undefined') {
@@ -39,26 +38,26 @@ const id = params.id;
 
         if (error) {
           console.error('Error fetching news details:', error);
-          router.push('/archive'); // العودة إلى الأرشيف إذا لم يتم العثور على الخبر
         } else {
           setNews(data);
         }
       } catch (err) {
         console.error('Error in fetchNews:', err);
-        router.push('/archive');
       }
     };
 
-    fetchNews();
-  }, [id, router]);
+    if (id) {
+      fetchNews();
+    }
+  }, [id]);
 
+  // في حالة عدم وجود خبر بعد التحميل
   if (!news) {
     return <p className="p-6">جارٍ تحميل التفاصيل...</p>;
   }
 
   return (
-    <div className="px-1 mt-1 mb-1"> {/* إزالة الحواف الجانبية والعليا والسفلية */}
-      {/* عرض الخبر */}
+    <div className="px-1 mt-1 mb-1">
       <div className="bg-white p-4 rounded-lg shadow-md transition duration-300 hover:shadow-lg">
         {/* العنوان الصغير (إذا كان موجودًا) */}
         {news.subtitle && (
@@ -71,23 +70,21 @@ const id = params.id;
         {/* الصورة بتنسيق أفضل */}
         {news.image_url && (
           <div className="w-full h-[250px] bg-gray-100 mt-2 rounded-lg overflow-hidden flex justify-center items-center">
-           <Image
-  src={news.image_url}
-  alt={news.title}
-  width={600}  // حدّد العرض
-  height={400} // حدّد الارتفاع
-  className="object-contain"
-  priority // لضمان التحميل السريع للصورة الرئيسية
-/>
+            <Image
+              src={news.image_url}
+              alt={news.title}
+              width={600} // حدد العرض
+              height={400} // حدد الارتفاع
+              className="object-contain"
+              priority // لضمان التحميل السريع للصورة الرئيسية
+            />
           </div>
         )}
 
         {/* صف يحتوي على كلمة "الماس"، تاريخ النشر، وزر المشاركة والتحرير */}
         <div className="flex items-center justify-between mt-4">
-          {/* كلمة "الماس" */}
           <div className="text-sm text-blue-500 font-semibold">الماس</div>
 
-          {/* تاريخ النشر */}
           <div className="text-sm text-gray-500">
             {new Date(news.created_at).toLocaleDateString('ar-SA', {
               year: 'numeric',
@@ -96,12 +93,11 @@ const id = params.id;
             })}
           </div>
 
-          {/* أزرار "مشاركة" و"تحرير" */}
           <div className="flex gap-4">
             {/* زر المشاركة */}
             <button
               onClick={() => {
-                navigator.clipboard.writeText(window.location.href); // نسخ الرابط الحالي
+                navigator.clipboard.writeText(window.location.href);
                 alert('تم نسخ الرابط!');
               }}
               className="text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-1"
@@ -149,7 +145,6 @@ const id = params.id;
           </div>
         </div>
 
-        {/* نص الخبر */}
         <p className="mt-2 text-gray-800 leading-relaxed text-justify">
           {news.content}
         </p>
