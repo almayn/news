@@ -1,6 +1,6 @@
 // app/layout.tsx
 import './globals.css';
-import Navbar from './Navbar.tsx'; // استدعاء الناف بار
+import Navbar from './Navbar';
 
 export const metadata = {
   title: 'موقع الأخبار',
