@@ -1,7 +1,6 @@
 // app/archive/page.tsx
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
 interface NewsItem {
