@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+/* app/globals.css */
+
+/* الأنماط العامة */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+/* ضبط الهوامش للشاشات الكبيرة والصغيرة */
+.container {
+  max-width: 1200px; /* عرض أقصى للشاشة الكبيرة */
+  margin: 0 auto; /* توسيط المحتوى */
+  padding: 0 1rem; /* هوامش جانبية صغيرة افتراضيًا */
+}
+
+/* تعديل الهوامش للشاشات الصغيرة (مثل الجوال) */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 0.5rem; /* تقليل الهوامش الجانبية */
+  }
+}
+
+/* تحسين الناف بار للشاشات الصغيرة */
+
+
+/* تحسين الصور للشاشات الصغيرة */
+img,
+.next-image {
+  max-width: 100%; /* جعل الصور تستجيب لحجم الشاشة */
+  height: auto; /* الحفاظ على نسبة العرض إلى الارتفاع */
+}
+
+/* app/globals.css */
+@font-face {
+  font-family: 'Alexandria';
+  src: url('/fonts/Alexandria-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Rubik';
+  src: url('/fonts/Rubik-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  font-family: 'Rubik', Arial, sans-serif !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Alexandria', Arial, sans-serif !important;
+}
