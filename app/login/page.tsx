@@ -11,15 +11,22 @@ export default function LoginPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     // بيانات تسجيل الدخول الثابتة (يمكن استبدالها بقاعدة بيانات مستخدمين)
     const validUsername = 'admin';
     const validPassword = 'password123';
 
     if (username === validUsername && password === validPassword) {
       // تسجيل الدخول الناجح
-      localStorage.setItem('isAdmin', 'true'); // تخزين حالة تسجيل الدخول
-      router.push('/admin'); // إعادة التوجيه إلى لوحة التحكم
+      try {
+        localStorage.setItem('isAdmin', 'true');
+        sessionStorage.setItem('isAdmin', 'true'); // إضافة هذا السطر للتأكد
+        console.log('State saved successfully:', { isAdmin: true });
+      } catch (error) {
+        console.warn('LocalStorage غير مدعوم، سيتم استخدام SessionStorage.');
+      }
+
+      // إعادة التوجيه إلى لوحة التحكم
+      router.push('/admin');
     } else {
       setError('اسم المستخدم أو كلمة المرور غير صحيحة.');
     }
@@ -39,7 +46,6 @@ export default function LoginPage() {
             onChange={(e) => setUsername(e.target.value)}
             className="w-full p-2 border border-gray-300 rounded"
           />
-
           {/* كلمة المرور */}
           <input
             type="password"
@@ -48,7 +54,6 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full p-2 border border-gray-300 rounded"
           />
-
           {/* زر تسجيل الدخول */}
           <button
             type="submit"

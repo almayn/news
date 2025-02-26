@@ -8,16 +8,53 @@ export default function EditNews() {
   const router = useRouter();
   const params = useParams();
   const id = params.id;
+
+  // ✅ تعريف جميع Hooks أولاً
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // حالة التحميل
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [content, setContent] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [message, setMessage] = useState('');
 
+  // ✅ التحقق من حالة المشرف
   useEffect(() => {
+    const checkAdmin = () => {
+      if (typeof window !== 'undefined') {
+        const adminStatus =
+          localStorage.getItem('isAdmin') || sessionStorage.getItem('isAdmin');
+        console.log('Admin status:', adminStatus);
+        setIsAdmin(adminStatus === 'true');
+        setIsLoading(false); // إنهاء التحميل
+      }
+    };
+
+    // تأخير التحقق لتجنب المشاكل المحتملة
+    const timer = setTimeout(() => {
+      checkAdmin();
+    }, 500);
+
+    // إضافة Listener للتحديث عند تغيير localStorage
+    window.addEventListener('storage', checkAdmin);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('storage', checkAdmin);
+    };
+  }, []);
+
+  // ✅ جلب بيانات الخبر
+  useEffect(() => {
+    if (!isAdmin) return; // لا نقوم بجلب البيانات إذا لم يكن المستخدم مشرفًا
+
     const fetchNews = async () => {
       try {
-        const { data, error } = await supabase.from('news').select('*').eq('id', id).single();
+        const { data, error } = await supabase
+          .from('news')
+          .select('*')
+          .eq('id', id)
+          .single();
         if (error) {
           console.error('Error fetching news details:', error);
           router.push('/admin');
@@ -31,13 +68,22 @@ export default function EditNews() {
         router.push('/admin');
       }
     };
-
     fetchNews();
-  }, [id, router]);
+  }, [id, isAdmin, router]);
 
+  // ✅ إعادة توجيه إذا لم يكن مشرفًا
+  if (isLoading) {
+    return <p>جارٍ التحقق من حالة تسجيل الدخول...</p>;
+  }
+
+  if (!isAdmin) {
+    router.push('/login'); // استخدام router.push بدلاً من window.location.href
+    return null;
+  }
+
+  // ✅ التعامل مع تحديث الخبر
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     try {
       let imageUrl = '';
       if (image) {
@@ -45,16 +91,13 @@ export default function EditNews() {
         const { data, error: uploadError } = await supabase.storage
           .from('images')
           .upload(`${Date.now()}-${fileName}`, image);
-
         if (uploadError) {
           console.error('Error uploading image:', uploadError);
           setMessage('حدث خطأ أثناء رفع الصورة.');
           return;
         }
-
         imageUrl = supabase.storage.from('images').getPublicUrl(data.path).data.publicUrl;
       }
-
       const { error: updateError } = await supabase
         .from('news')
         .update({
@@ -64,7 +107,6 @@ export default function EditNews() {
           image_url: imageUrl || undefined,
         })
         .eq('id', id);
-
       if (updateError) {
         console.error('Error updating news:', updateError);
         setMessage('حدث خطأ أثناء تحديث الخبر.');
@@ -78,10 +120,10 @@ export default function EditNews() {
     }
   };
 
+  // ✅ التعامل مع حذف الخبر
   const handleDelete = async () => {
     const confirmDelete = window.confirm('هل أنت متأكد من حذف هذا الخبر؟');
     if (!confirmDelete) return;
-
     try {
       const { error } = await supabase.from('news').delete().eq('id', id);
       if (error) {
@@ -110,7 +152,6 @@ export default function EditNews() {
           onChange={(e) => setTitle(e.target.value)}
           className="w-full p-2 border border-gray-300 rounded"
         />
-
         {/* عنوان فرعي (اختياري) */}
         <input
           type="text"
@@ -119,7 +160,6 @@ export default function EditNews() {
           onChange={(e) => setSubtitle(e.target.value)}
           className="w-full p-2 border border-gray-300 rounded"
         />
-
         {/* رفع الصورة */}
         <input
           type="file"
@@ -127,7 +167,6 @@ export default function EditNews() {
           onChange={(e) => setImage(e.target.files?.[0] || null)}
           className="w-full p-2 border border-gray-300 rounded"
         />
-
         {/* نص الخبر */}
         <textarea
           placeholder="نص الخبر"
@@ -136,7 +175,6 @@ export default function EditNews() {
           onChange={(e) => setContent(e.target.value)}
           className="w-full p-2 border border-gray-300 rounded"
         ></textarea>
-
         {/* أزرار الإرسال والحذف */}
         <div className="flex gap-4">
           <button

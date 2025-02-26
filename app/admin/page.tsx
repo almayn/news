@@ -1,19 +1,57 @@
 // app/admin/page.tsx
 'use client'; // تحويل الملف إلى Client Component
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function Admin() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // حالة التحميل
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [content, setContent] = useState('');
   const [message, setMessage] = useState('');
+  const router = useRouter();
 
+  useEffect(() => {
+    const checkAdmin = () => {
+      if (typeof window !== 'undefined') {
+        const adminStatus =
+          localStorage.getItem('isAdmin') || sessionStorage.getItem('isAdmin');
+        console.log('Admin status:', adminStatus);
+        setIsAdmin(adminStatus === 'true');
+        setIsLoading(false); // إنهاء التحميل
+      }
+    };
+
+    // تأخير التحقق لتجنب المشاكل المحتملة
+    const timer = setTimeout(() => {
+      checkAdmin();
+    }, 500);
+
+    // إضافة Listener للتحديث عند تغيير localStorage
+    window.addEventListener('storage', checkAdmin);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('storage', checkAdmin);
+    };
+  }, []);
+
+  // ✅ التحقق من حالة المشرف وإعادة التوجيه
+  if (isLoading) {
+    return <p>جارٍ التحقق من حالة تسجيل الدخول...</p>;
+  }
+
+  if (!isAdmin) {
+    router.push('/login'); // استخدام router.push بدلاً من window.location.href
+    return null;
+  }
+
+  // ✅ بقية الكود كما هو
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!title || !content) {
       setMessage('يرجى ملء جميع الحقول.');
       return;
@@ -37,7 +75,6 @@ export default function Admin() {
           method: 'POST',
           body: formData,
         });
-
         const result = await response.json();
         if (response.ok) {
           imageUrl = result.imageUrl;
@@ -59,7 +96,6 @@ export default function Admin() {
           content,
         },
       ]);
-
       if (insertError) {
         console.error('Error inserting news:', insertError);
         setMessage('حدث خطأ أثناء إضافة الخبر.');
@@ -98,7 +134,6 @@ export default function Admin() {
           onChange={(e) => setTitle(e.target.value)}
           className="w-full p-2 border border-gray-300 rounded"
         />
-
         {/* عنوان فرعي (اختياري) */}
         <input
           type="text"
@@ -107,7 +142,6 @@ export default function Admin() {
           onChange={(e) => setSubtitle(e.target.value)}
           className="w-full p-2 border border-gray-300 rounded"
         />
-
         {/* رفع الصورة */}
         <input
           type="file"
@@ -115,7 +149,6 @@ export default function Admin() {
           onChange={handleImageChange}
           className="w-full p-2 border border-gray-300 rounded"
         />
-
         {/* نص الخبر */}
         <textarea
           placeholder="نص الخبر"
@@ -124,7 +157,6 @@ export default function Admin() {
           onChange={(e) => setContent(e.target.value)}
           className="w-full p-2 border border-gray-300 rounded"
         ></textarea>
-
         {/* زر الإرسال */}
         <button
           type="submit"
