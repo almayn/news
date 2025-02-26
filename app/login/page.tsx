@@ -19,7 +19,7 @@ export default function LoginPage() {
         localStorage.setItem('isAdmin', 'true');
         sessionStorage.setItem('isAdmin', 'true'); // إضافة هذا السطر للتأكد
         console.log('State saved successfully:', { isAdmin: true });
-      } catch (err) {
+      } catch  {
         console.warn('LocalStorage غير مدعوم، سيتم استخدام SessionStorage.');
       }
 
