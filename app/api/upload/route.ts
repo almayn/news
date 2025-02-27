@@ -18,12 +18,18 @@ export async function POST(request: Request) {
     // معالجة الصورة وتصغيرها دون اقتصاص باستخدام sharp
     const arrayBuffer = await file.arrayBuffer();
     const processedImageBuffer = await sharp(arrayBuffer)
-      .resize({
-        height: 200, // الارتفاع الأقصى
-        fit: 'inside', // تصغير الصورة دون اقتصاص
-      })
-      .toFormat('jpeg') // تحويل الصورة إلى JPEG
-      .toBuffer();
+  .resize({
+    width: 600, // العرض المطلوب
+    height: 400, // الارتفاع المطلوب
+    fit: 'cover', // لملء الإطار
+    position: 'center', // للقص من المنتصف
+  })
+  .jpeg({
+    quality: 85, // جودة عالية
+    mozjpeg: true, // تحسين JPEG
+  })
+  .toBuffer();
+
 
     // الحصول على أبعاد الصورة المعالجة
     const imageMetadata = await sharp(processedImageBuffer).metadata();

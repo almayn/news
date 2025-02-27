@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { supabase } from '../lib/supabaseClient';
+import { parseISO } from 'date-fns';
+import { format } from 'date-fns-tz';
+
+
+
 interface NewsItem {
   id: string;
   title: string;
@@ -20,10 +25,8 @@ export default function Home() {
     const fetchNews = async () => {
       try {
         const { data, error } = await supabase
-          .from('news')
-          .select('*')
-          .order('created_at', { ascending: false });
-
+          .rpc('get_news_with_iso_date');
+    
         if (error) {
           console.error('Error fetching news:', error);
         } else {
@@ -36,61 +39,55 @@ export default function Home() {
 
     fetchNews();
   }, []);
+    
 
   return (
-    <div className="px-1 mt-1 mb-1"> {/* إزالة الحواف الجانبية والعليا والسفلية */}
-      {/* عرض الأخبار */}
+    <div className="px-1 mt-1 mb-1">
       {news.length === 0 ? (
         <p className="text-gray-500">لا توجد أخبار متاحة.</p>
       ) : (
         <div className="space-y-6">
-          {/* عرض أول خبرين بالكامل */}
           {news.slice(0, 2).map((item) => (
             <div
               key={item.id}
               className="bg-white p-4 rounded-lg shadow-md transition duration-300 hover:shadow-lg relative"
             >
-              {/* العنوان الصغير (إذا كان موجودًا) */}
               {item.subtitle && (
                 <p className="text-blue-600 font-bold text-base mb-2">{item.subtitle}</p>
               )}
-              {/* العنوان الكبير كرابط */}
               <a href={`/archive/${item.id}`} className="block">
                 <h3 className="text-2xl font-bold text-blue-800 hover:text-blue-600 transition duration-200">
                   {item.title}
                 </h3>
               </a>
-              {/* الصورة بتنسيق أفضل */}
               {item.image_url && (
-                <div className="w-full h-[250px] bg-gray-100 mt-2 rounded-lg overflow-hidden flex justify-center items-center">
-                 <Image
-  src={item.image_url}
-  alt={item.title}
-  width={600} // حدد العرض
-  height={400} // حدد الارتفاع
-  className="object-contain"
-  priority // هذا يساعد في تحميل الصورة الرئيسية بسرعة
-/>
-                </div>
-              )}
-              {/* صف يحتوي على كلمة "الماس"، تاريخ النشر، وزر المشاركة والتحرير */}
+  <div className="w-full h-[250px] bg-gray-100 mt-2 rounded-lg overflow-hidden flex justify-center items-center shadow-md border border-gray-200">
+    <Image
+      src={item.image_url}
+      alt={item.title}
+      width={600}
+      height={400}
+      className="object-cover rounded-md"
+      priority
+    />
+  </div>
+)}
+
               <div className="flex items-center justify-between mt-4">
-                {/* كلمة "الماس" */}
                 <div className="text-sm text-blue-500 font-semibold">الماس</div>
-                {/* تاريخ النشر */}
-                <div className="text-sm text-gray-500">
-                  {new Date(item.created_at).toLocaleDateString('ar-SA', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </div>
-                {/* أزرار "مشاركة" و"تحرير" */}
+                <div className="text-xs text-gray-500" style={{ direction: 'rtl' }}>
+  {item.created_at.replace('T', ' |').replace('Z', '')}
+</div>
+
+
+
+
+
+
                 <div className="flex gap-4">
-                  {/* زر المشاركة */}
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(window.location.href); // نسخ الرابط الحالي
+                      navigator.clipboard.writeText(window.location.href);
                       alert('تم نسخ الرابط!');
                     }}
                     className="text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-1"
@@ -111,7 +108,6 @@ export default function Home() {
                     </svg>
                     شارك
                   </button>
-                  {/* زر التحرير (يظهر فقط للمشرفين) */}
                   {isAdmin && (
                     <a
                       href={`/admin/edit/${item.id}`}
@@ -137,7 +133,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* نص الخبر (جزء فقط مع رابط "المزيد") */}
               <p className="mt-2 text-gray-800 leading-relaxed text-justify">
                 {item.content.slice(0, 200)}...{' '}
                 <a href={`/archive/${item.id}`} className="text-blue-600 hover:text-blue-800">

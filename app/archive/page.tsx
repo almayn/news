@@ -66,13 +66,14 @@ export default function Archive() {
                 {/* كلمة "الماس" */}
                 <div className="text-xs text-blue-500 font-semibold">الماس</div>
                 {/* تاريخ النشر */}
-                <div className="text-xs text-gray-500">
-                  {new Date(news.created_at).toLocaleDateString('ar-SA', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </div>
+                <div className="text-xs text-gray-500" style={{ direction: 'rtl' }}>
+  {new Date(news.created_at).toLocaleDateString('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).replace(/-/g, '/')}
+</div>
+
               </div>
             </div>
           ))}

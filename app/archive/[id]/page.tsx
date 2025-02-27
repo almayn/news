@@ -85,13 +85,14 @@ export default function NewsDetails() {
         <div className="flex items-center justify-between mt-4">
           <div className="text-sm text-blue-500 font-semibold">الماس</div>
 
-          <div className="text-sm text-gray-500">
-            {new Date(news.created_at).toLocaleDateString('ar-SA', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
-          </div>
+          <div className="text-xs text-gray-500" style={{ direction: 'rtl' }}>
+  {new Date(news.created_at).toLocaleDateString('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).replace(/-/g, '/')}
+</div>
+
 
           <div className="flex gap-4">
             {/* زر المشاركة */}
