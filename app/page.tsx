@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { supabase } from '../lib/supabaseClient';
-import { parseISO } from 'date-fns';
-import { format } from 'date-fns-tz';
 
 
 
