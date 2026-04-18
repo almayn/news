@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ====== POEM STYLES ====== */
+
+.poem-wrapper {
+  margin-top: 4px;
+}
+
+/* كل بيت */
+.poem-line-block {
+  margin: 0;
+  padding: 0;
+}
+
+/* صف البيت - تعديل ليصبح عمودياً مثل الجوال */
+.poem-row {
+  display: block; /* تغيير من flex إلى block ليأخذ الشطر كامل السطر */
+  width: 100%;
+  max-width: 600px; /* يمكنك التحكم في عرض القصيدة الكلي هنا */
+  margin: 0 auto;
+  padding: 10px 0;
+}
+
+/* الشطر */
+.shatr {
+  display: block;
+  width: 100%;
+  font-size: 1.125rem;
+  line-height: 1.8; 
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+/* المحاذاة */
+.shatr.sadr {
+  text-align: right;
+}
+
+.shatr.ajuz {
+  text-align: left;
+  margin-top: 4px; /* مسافة بسيطة بين الصدر والعجز */
+}
+
+/* ====== MOBILE ====== */
+@media (max-width: 768px) {
+  .shatr {
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+}
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

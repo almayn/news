@@ -1,0 +1,198 @@
+import { notFound } from "next/navigation";
+import { supabase } from "../../lib/supabase";
+import ShareButtons from "../../components/ShareButtons";
+import AdminEditButton from "../../components/AdminEditButton";
+import ArticleBackButton from "../../components/ArticleBackButton";
+import type { Metadata } from "next";
+
+interface Article {
+  id: string;
+  title: string;
+  sub_title?: string;
+  body: string;
+  image_url: string;
+  created_at: string;
+  category: string;
+  source?: string;
+  author?: string;
+  is_poem?: boolean; // 👈 جديد
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+
+  const { data } = await supabase
+    .from("news_posts")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (!data) {
+    return {
+      title: "خبر غير موجود",
+    };
+  }
+
+  const title = data.title;
+  const description =
+    data.sub_title || data.body?.replace(/<[^>]*>?/gm, "").slice(0, 120);
+  const image = data.image_url;
+
+  const url = `https://almasyn.com/news/${id}`;
+
+  return {
+    title,
+    description,
+
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: "أخبار الماس",
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+        },
+      ],
+      locale: "ar_SA",
+      type: "article",
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
+  };
+}
+
+// 👇 دالة تنسيق الشعر
+function renderPoem(body: string) {
+  const lines = body
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="space-y-0">
+      {lines.map((line, index) => {
+        const [sadr, ajuz] = line.split("|").map((part) => part?.trim() || "");
+
+        return (
+          <div key={index} className="poem-line-block">
+            <div className="poem-row">
+              <div className="shatr sadr">{sadr}</div>
+              <div className="shatr ajuz">{ajuz}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+async function getArticle(id: string): Promise<Article | null> {
+  const { data, error } = await supabase
+    .from("news_posts")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) return null;
+
+  return {
+    ...data,
+    category: data.category || "عام",
+    body: data.body || data.content || "لا يوجد تفاصيل للخبر.",
+    source: data.source || "أخبار الماس",
+    is_poem: data.is_poem || false, // 👈 جديد
+  };
+}
+
+export default async function NewsDetailsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const article = await getArticle(id);
+
+  if (!article) {
+    notFound();
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-4xl px-4 py-8 md:py-12">
+        <ArticleBackButton />
+
+        <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          {article.image_url && (
+            <img
+              src={article.image_url}
+              alt={article.title}
+              className="h-[260px] w-full object-cover md:h-[460px]"
+            />
+          )}
+
+          <div className="p-6 md:p-10">
+            <div className="mb-5 flex flex-wrap items-center gap-3 text-sm font-black">
+              <span className="rounded-full bg-primary-50 px-4 py-2 text-primary-700">
+                {article.category}
+              </span>
+
+              <span className="text-slate-400">
+                {new Date(article.created_at).toLocaleDateString("ar-SA")}
+              </span>
+
+              <span className="text-slate-500">
+                {article.source || "أخبار الماس"}
+              </span>
+
+              {article.author && (
+                <span className="text-slate-500">✍ {article.author}</span>
+              )}
+            </div>
+
+            <h1 className="mb-4 text-3xl font-black leading-tight text-slate-900 md:text-5xl">
+              {article.title}
+            </h1>
+
+            {article.sub_title && (
+              <p className="mb-6 text-lg font-bold leading-8 text-slate-500 md:text-xl">
+                {article.sub_title}
+              </p>
+            )}
+
+            <div className="mb-8">
+              <AdminEditButton articleId={article.id} />
+            </div>
+
+            {/* 👇 هنا التغيير */}
+            {article.is_poem ? (
+              <div className="poem-wrapper">
+                {renderPoem(article.body)}
+              </div>
+            ) : (
+              <div
+                className="prose prose-lg max-w-none leading-9 text-slate-800 prose-headings:text-slate-900 prose-p:leading-9"
+                dangerouslySetInnerHTML={{ __html: article.body }}
+              />
+            )}
+          </div>
+
+          <ShareButtons
+            url={`https://almasyn.com/news/${article.id}`}
+            title={article.title}
+          />
+        </article>
+      </div>
+    </div>
+  );
+}
