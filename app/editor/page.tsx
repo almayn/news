@@ -1,3 +1,4 @@
+// app/editor/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -23,12 +24,41 @@ interface Article {
   category: string;
   source?: string | null;
   author?: string | null;
-  is_poem?: boolean | null;
 }
+
+// 📱 دوال مساعدة للكشف عن الجهاز والمتصفح
+const isIOS = () => {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+};
+
+const isSafari = () => {
+  if (typeof navigator === "undefined") return false;
+  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && !/chromium/i.test(navigator.userAgent);
+};
+
+// ⏳ انتظار تحميل جميع الموارد (صور + خطوط)
+const waitForResources = async (element: HTMLElement, timeout = 12000) => {
+  const startTime = Date.now();
+  
+  const checkResources = () => {
+    const images = Array.from(element.querySelectorAll("img"));
+    const imagesLoaded = images.every(img => img.complete && img.naturalWidth > 0);
+    
+    const fontsReady = document.fonts?.status === "loaded" || !document.fonts;
+    
+    return imagesLoaded && fontsReady;
+  };
+
+  while (!checkResources() && Date.now() - startTime < timeout) {
+    await new Promise(resolve => setTimeout(resolve, 80));
+  }
+};
 
 function EditorPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPoem, setIsPoem] = useState(false);
 
   const articleId = searchParams.get("id");
   const isEditMode = !!articleId;
@@ -39,10 +69,8 @@ function EditorPageContent() {
   const [category, setCategory] = useState("عام");
   const [source, setSource] = useState("أخبار الماس");
   const [author, setAuthor] = useState("");
-  const [previewImageUrl, setPreviewImageUrl] = useState("");
-  const [storedImageUrl, setStoredImageUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [isBreaking, setIsBreaking] = useState(false);
-  const [isPoem, setIsPoem] = useState(false);
 
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSavingArticle, setIsSavingArticle] = useState(false);
@@ -50,13 +78,10 @@ function EditorPageContent() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isLoadingArticle, setIsLoadingArticle] = useState(false);
 
-  const [generatedExportUrl, setGeneratedExportUrl] = useState("");
-  const [generatedExportName, setGeneratedExportName] = useState("");
-  const [showExportActions, setShowExportActions] = useState(false);
+  const [notice, setNotice] = useState<{ type: NoticeType; text: string } | null>(null);
 
-  const [notice, setNotice] = useState<{ type: NoticeType; text: string } | null>(
-    null
-  );
+  // 🔹 حالة جديدة: تخزين الصورة المُولَّدة للمعاينة والحفظ/المشاركة
+  const [exportedImageDataUrl, setExportedImageDataUrl] = useState<string | null>(null);
 
   const [imageScale, setImageScale] = useState(1);
   const [imagePositionY, setImagePositionY] = useState(50);
@@ -98,72 +123,23 @@ function EditorPageContent() {
       month: "long",
       day: "numeric",
     });
-
     const englishNumbers = arabicDate.replace(/[٠-٩]/g, (d) =>
       String(d.charCodeAt(0) - 0x0660)
     );
-
     return englishNumbers;
   };
 
-  const fileToDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
   const waitForImagesToLoad = async (element: HTMLElement) => {
     const images = Array.from(element.querySelectorAll("img"));
-
     await Promise.all(
       images.map((img) => {
-        if (img.complete && img.naturalWidth > 0) return Promise.resolve(true);
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
         return new Promise((resolve) => {
-          const done = () => resolve(true);
-          img.onload = done;
-          img.onerror = done;
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(true);
         });
       })
     );
-
-    if (document.fonts && "ready" in document.fonts) {
-      await document.fonts.ready;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1800));
-  };
-
-  const dataUrlToBlob = async (dataUrl: string) => {
-    const res = await fetch(dataUrl);
-    return await res.blob();
-  };
-
-  const buildExportNode = async () => {
-    if (!previewRef.current) throw new Error("المعاينة غير جاهزة");
-
-    const clonedNode = previewRef.current.cloneNode(true) as HTMLDivElement;
-    clonedNode.style.width = "400px";
-    clonedNode.style.height = "711px";
-    clonedNode.style.maxWidth = "none";
-    clonedNode.style.transform = "none";
-    clonedNode.style.position = "fixed";
-    clonedNode.style.left = "-99999px";
-    clonedNode.style.top = "0";
-    clonedNode.style.pointerEvents = "none";
-    clonedNode.style.zIndex = "-1";
-
-    document.body.appendChild(clonedNode);
-    await waitForImagesToLoad(clonedNode);
-
-    return clonedNode;
-  };
-
-  const cleanupExportNode = (node?: HTMLElement | null) => {
-    if (node && node.parentNode) {
-      node.parentNode.removeChild(node);
-    }
   };
 
   const resetForm = () => {
@@ -173,11 +149,9 @@ function EditorPageContent() {
     setCategory("عام");
     setSource("أخبار الماس");
     setAuthor("");
-    setPreviewImageUrl("");
-    setStoredImageUrl("");
+    setImageUrl("");
     setIsBreaking(false);
     setIsPoem(false);
-
     setImageScale(1);
     setImagePositionY(50);
     setTextOffsetY(0);
@@ -189,44 +163,33 @@ function EditorPageContent() {
     setSubtitleBgColor("#000000");
     setTitleColor("#ffffff");
     setSubTitleColor(GOLD);
-    setTitleStrokeColor("#000000");
     setTitleStrokeWidth(0);
     setBlurAmount(12);
-    setBlurOpacity(0.38);
-    setBlurColor("#000000");
-
-    setGeneratedExportUrl("");
-    setGeneratedExportName("");
-    setShowExportActions(false);
+    // 🔹 إعادة تعيين الصورة المُولَّدة
+    setExportedImageDataUrl(null);
 
     if (isEditMode) {
       router.push("/editor");
       router.refresh();
     }
-
     showNotice("تم التفريغ وفتح خبر جديد", "success");
   };
 
   useEffect(() => {
     const fetchArticleForEdit = async () => {
       if (!articleId) return;
-
       try {
         setIsLoadingArticle(true);
-
         const { data, error } = await supabase
           .from("news_posts")
           .select("*")
           .eq("id", articleId)
           .single();
-
         if (error) throw error;
-
         if (!data) {
           showNotice("لم يتم العثور على الخبر المطلوب", "error");
           return;
         }
-
         const item: Article = {
           ...data,
           category: data.category || "عام",
@@ -234,17 +197,15 @@ function EditorPageContent() {
           source: data.source || "أخبار الماس",
           author: data.author || "",
         };
-
         setTitle(item.title || "");
         setSubTitle(item.sub_title || "");
         setBody(item.body || "");
         setCategory(item.category || "عام");
         setSource(item.source || "أخبار الماس");
         setAuthor(item.author || "");
-        setPreviewImageUrl(item.image_url || "");
-        setStoredImageUrl(item.image_url || "");
+        setImageUrl(item.image_url || "");
         setIsBreaking(false);
-        setIsPoem(!!item.is_poem);
+        setIsPoem(!!data.is_poem);
       } catch (error) {
         console.error("Fetch article error:", error);
         showNotice("تعذر تحميل بيانات الخبر للتعديل", "error");
@@ -252,34 +213,29 @@ function EditorPageContent() {
         setIsLoadingArticle(false);
       }
     };
-
     fetchArticleForEdit();
   }, [articleId]);
+
+  // 🔍 تحقق من نوع الجهاز عند التحميل
+  useEffect(() => {
+    if (isIOS()) {
+      console.log("📱 iOS detected - using mobile-optimized settings");
+      if (imageScale > 1.5) setImageScale(1.5);
+    }
+  }, []);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploadingImage(true);
+    const formData = new FormData();
+    formData.append("image", file);
 
     try {
-      const localPreview = await fileToDataUrl(file);
-
-      setPreviewImageUrl(localPreview);
-      setStoredImageUrl("");
-      setGeneratedExportUrl("");
-      setGeneratedExportName("");
-      setShowExportActions(false);
-
-      showNotice("تم تجهيز الصورة للمعاينة", "success");
-
-      const formData = new FormData();
-      formData.append("image", file);
-
       const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
-
       if (!apiKey) {
-        showNotice("مفتاح ImgBB غير موجود، لكن المعاينة تعمل محليًا", "info");
+        showNotice("مفتاح ImgBB غير موجود", "error");
         return;
       }
 
@@ -287,136 +243,189 @@ function EditorPageContent() {
         method: "POST",
         body: formData,
       });
-
       const data = await res.json();
 
       if (data?.success && data?.data?.url) {
-        setStoredImageUrl(data.data.url);
-        showNotice("تم رفع الصورة بنجاح", "success");
+        setImageUrl(data.data.url);
+        // 🔹 إخفاء المعاينة السابقة عند رفع صورة جديدة
+        setExportedImageDataUrl(null);
+        
+        const testImage = new Image();
+        testImage.crossOrigin = "anonymous";
+        testImage.onload = () => {
+          showNotice("تم رفع الصورة بنجاح ✓", "success");
+        };
+        testImage.onerror = () => {
+          showNotice("تم الرفع ⚠️ قد تحتاج لقطة شاشة للتصدير", "info");
+        };
+        testImage.src = data.data.url;
       } else {
-        showNotice("فشل رفع الصورة، لكن المعاينة المحلية جاهزة", "info");
+        showNotice("فشل رفع الصورة", "error");
       }
-    } catch (error) {
-      console.error(error);
-      showNotice("حدث خطأ أثناء تجهيز الصورة", "error");
+    } catch {
+      showNotice("حدث خطأ أثناء رفع الصورة", "error");
     } finally {
       setIsUploadingImage(false);
     }
   };
 
-  const prepareExportImage = async () => {
+  // 🔹 1️⃣ دالة تجهيز الصورة فقط (بدون تنزيل تلقائي)
+  const prepareImageForExport = async () => {
     if (!previewRef.current) return;
 
-    if (!title.trim() || !previewImageUrl.trim()) {
-      showNotice("أدخل عنوان الخبر وارفع صورة قبل التصدير", "error");
+    if (!title.trim() || !imageUrl.trim()) {
+      showNotice("أدخل عنوان الخبر وارفع صورة قبل التجهيز", "error");
       return;
     }
 
     setIsExporting(true);
-    setShowExportActions(false);
-    setGeneratedExportUrl("");
-    setGeneratedExportName("");
-
-    let exportNode: HTMLDivElement | null = null;
+    setExportedImageDataUrl(null);
+    showNotice("جاري تجهيز الصورة...", "info");
 
     try {
-      exportNode = await buildExportNode();
+      await document.fonts?.ready;
+      await waitForResources(previewRef.current);
+      await waitForImagesToLoad(previewRef.current);
 
-      const dataUrl = await htmlToImage.toPng(exportNode, {
-        pixelRatio: 3,
+      const pixelRatio = isIOS() ? 2 : 3;
+      const element = previewRef.current;
+      
+      const dataUrl = await htmlToImage.toPng(element, {
+        pixelRatio,
         cacheBust: true,
         backgroundColor: "#0f172a",
         skipFonts: false,
-        width: 400,
-        height: 711,
-        canvasWidth: 1200,
-        canvasHeight: 2133,
+        width: element.offsetWidth,
+        height: element.offsetHeight,
         style: {
-          width: "400px",
-          height: "711px",
           transform: "none",
-          direction: "rtl",
+          transformOrigin: "top left",
+          margin: "0",
+          padding: "0",
+        },
+        filter: (node: HTMLElement) => {
+          if (node.tagName === "IMG") return true;
+          return !node.classList?.contains("no-export");
         },
       });
 
-      const fileName = `almas-news-${Date.now()}.png`;
+      // 🔹 تخزين الصورة المُولَّدة لعرض المعاينة والأزرار
+      setExportedImageDataUrl(dataUrl);
+      showNotice("✅ تم تجهيز الصورة بنجاح", "success");
 
-      setGeneratedExportUrl(dataUrl);
-      setGeneratedExportName(fileName);
-      setShowExportActions(true);
-
-      showNotice("تم تجهيز البطاقة. الآن احفظها أو شاركها", "success");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Export error:", error);
-      showNotice("تعذر تجهيز الصورة", "error");
+      
+      if (error.message?.includes("canvas") || error.message?.includes("size") || error.message?.includes("exceeded")) {
+        try {
+          showNotice("جاري المحاولة بدقة أقل...", "info");
+          
+          const fallbackDataUrl = await htmlToImage.toPng(previewRef.current, {
+            pixelRatio: 1,
+            backgroundColor: "#0f172a",
+            width: previewRef.current?.offsetWidth,
+            height: previewRef.current?.offsetHeight,
+            style: { transform: "none" },
+          });
+          
+          setExportedImageDataUrl(fallbackDataUrl);
+          showNotice("✅ تم التجهيز بدقة منخفضة", "success");
+          return;
+        } catch (fallbackErr) {
+          console.error("Fallback export failed:", fallbackErr);
+        }
+      }
+      
+      showNotice("⚠️ تعذر تجهيز الصورة، جرب مرة أخرى", "error");
+      
     } finally {
-      cleanupExportNode(exportNode);
       setIsExporting(false);
     }
   };
 
-  const downloadPreparedImage = () => {
-    if (!generatedExportUrl) return;
-
-    const link = document.createElement("a");
-    link.download = generatedExportName || `almas-news-${Date.now()}.png`;
-    link.href = generatedExportUrl;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // 🔹 2️⃣ دالة الحفظ اليدوي للصورة المُولَّدة
+  const savePreparedImage = () => {
+    if (!exportedImageDataUrl) return;
+    
+    const filename = `almas-news-${Date.now()}.png`;
+    
+    if (isSafari()) {
+      // سفاري يحتاج معالجة خاصة
+      fetch(exportedImageDataUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = blobUrl;
+          link.download = filename;
+          link.style.display = "none";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 500);
+          showNotice("✅ تم حفظ الصورة", "success");
+        })
+        .catch(() => {
+          // fallback
+          const link = document.createElement("a");
+          link.href = exportedImageDataUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showNotice("✅ تم حفظ الصورة", "success");
+        });
+    } else {
+      const link = document.createElement("a");
+      link.href = exportedImageDataUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showNotice("✅ تم حفظ الصورة", "success");
+    }
   };
 
+  // 🔹 3️⃣ دالة المشاركة اليدوية للصورة المُولَّدة
   const sharePreparedImage = async () => {
-    if (!generatedExportUrl) return;
-
+    if (!exportedImageDataUrl) return;
+    
     try {
-      const blob = await dataUrlToBlob(generatedExportUrl);
-      const file = new File(
-        [blob],
-        generatedExportName || `almas-news-${Date.now()}.png`,
-        { type: "image/png" }
-      );
-
-      if (
-        navigator.share &&
-        navigator.canShare &&
-        navigator.canShare({ files: [file] })
-      ) {
+      const response = await fetch(exportedImageDataUrl);
+      const blob = await response.blob();
+      const filename = `almas-news-${Date.now()}.png`;
+      const file = new File([blob], filename, { type: "image/png" });
+      
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: title.trim() || "خبر الماس",
-          text: title.trim() || "خبر الماس",
+          title: title.trim(),
+          text: subTitle.trim() || "أخبار الماس",
         });
-        showNotice("تم فتح نافذة المشاركة", "success");
-        return;
+        showNotice("✅ تمت المشاركة", "success");
+      } else {
+        // fallback: حفظ إذا لم يدعم المشاركة
+        savePreparedImage();
       }
-
-      downloadPreparedImage();
-      showNotice("المشاركة المباشرة غير مدعومة هنا، تم تحويلك للحفظ", "info");
-    } catch (error) {
-      console.error("Share error:", error);
-      showNotice("تعذر فتح المشاركة، استخدم الحفظ", "error");
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("Share failed:", err);
+        savePreparedImage();
+      }
     }
   };
 
   const saveArticle = async () => {
-    if (!title.trim() || !body.trim() || !previewImageUrl.trim()) {
+    if (!title.trim() || !body.trim() || !imageUrl.trim()) {
       showNotice("يرجى تعبئة العنوان والنص واختيار صورة للخبر", "error");
       return;
     }
-
-    if (!storedImageUrl.trim()) {
-      showNotice("انتظر حتى يكتمل رفع الصورة قبل الحفظ", "error");
-      return;
-    }
-
     if (category === "مقالات" && !author.trim()) {
       showNotice("يرجى إدخال اسم الكاتب عند اختيار قسم المقالات", "error");
       return;
     }
 
     setIsSavingArticle(true);
-
     try {
       const payload: Record<string, any> = {
         title: title.trim(),
@@ -425,7 +434,7 @@ function EditorPageContent() {
         category,
         source: source.trim() || "أخبار الماس",
         author: category === "مقالات" ? author.trim() : null,
-        image_url: storedImageUrl.trim(),
+        image_url: imageUrl.trim(),
         is_poem: isPoem,
       };
 
@@ -434,19 +443,14 @@ function EditorPageContent() {
           .from("news_posts")
           .update(payload)
           .eq("id", articleId);
-
         if (error) throw error;
-
         showNotice("تم تحديث الخبر بنجاح", "success");
       } else {
         const { error } = await supabase.from("news_posts").insert([payload]);
-
         if (error) throw error;
-
         showNotice("تم حفظ الخبر بنجاح", "success");
       }
     } catch (error: any) {
-      console.error(error);
       showNotice(error.message || "حدث خطأ أثناء الحفظ", "error");
     } finally {
       setIsSavingArticle(false);
@@ -455,11 +459,9 @@ function EditorPageContent() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-
     try {
       const res = await fetch("/api/admin-logout", { method: "POST" });
       if (!res.ok) throw new Error();
-
       router.push("/secret-entry");
       router.refresh();
     } catch {
@@ -561,20 +563,14 @@ function EditorPageContent() {
                     disabled={isUploadingImage}
                     className="block w-full text-sm text-slate-500 file:ml-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-slate-900 file:px-5 file:py-2.5 file:text-sm file:font-bold file:text-white"
                   />
-
-                  {previewImageUrl && (
+                  {imageUrl && (
                     <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
                       <img
-                        src={previewImageUrl}
+                        src={imageUrl}
                         alt="معاينة"
                         className="h-56 w-full object-cover"
+                        crossOrigin="anonymous"
                       />
-                    </div>
-                  )}
-
-                  {isUploadingImage && (
-                    <div className="mt-3 text-sm font-bold text-slate-500">
-                      جاري رفع الصورة...
                     </div>
                   )}
                 </div>
@@ -609,20 +605,6 @@ function EditorPageContent() {
                     />
                   </div>
                 </div>
-
-                {category === "مقالات" && (
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-slate-700">
-                      اسم الكاتب
-                    </label>
-                    <input
-                      type="text"
-                      value={author}
-                      onChange={(e) => setAuthor(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none focus:bg-white"
-                    />
-                  </div>
-                )}
 
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -700,7 +682,6 @@ function EditorPageContent() {
                           className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
                         />
                       </div>
-
                       <div>
                         <label className="mb-1 block text-xs font-bold text-slate-500">
                           لون إحاطة العنوان
@@ -726,7 +707,6 @@ function EditorPageContent() {
                           className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
                         />
                       </div>
-
                       <div>
                         <div className="flex justify-between text-xs font-bold text-slate-500">
                           <span>سمك الإحاطة</span>
@@ -762,7 +742,6 @@ function EditorPageContent() {
                         className="w-full"
                       />
                     </div>
-
                     <div>
                       <div className="flex justify-between text-xs font-bold text-slate-500">
                         <span>شفافية الخلفية</span>
@@ -778,7 +757,6 @@ function EditorPageContent() {
                         className="w-full"
                       />
                     </div>
-
                     <div>
                       <label className="mb-1 block text-xs font-bold text-slate-500">
                         لون الخلفية
@@ -809,7 +787,6 @@ function EditorPageContent() {
                         className="w-full"
                       />
                     </div>
-
                     <div>
                       <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
                         <span>رفع / خفض النص</span>
@@ -827,6 +804,7 @@ function EditorPageContent() {
                   </div>
                 </div>
 
+                {/* 🔹 أزرار التحكم - تم تعديل زر التصدير */}
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <button
                     onClick={saveArticle}
@@ -840,13 +818,21 @@ function EditorPageContent() {
                       : "حفظ الخبر"}
                   </button>
 
+                  {/* 🔹 زر تجهيز الصورة فقط */}
                   <button
-                    onClick={prepareExportImage}
-                    disabled={isExporting || isUploadingImage}
-                    className="rounded-2xl px-6 py-3.5 font-extrabold text-white disabled:opacity-60"
+                    onClick={prepareImageForExport}
+                    disabled={isExporting || isUploadingImage || !imageUrl}
+                    className="rounded-2xl px-6 py-3.5 font-extrabold text-white disabled:opacity-60 flex items-center justify-center gap-2"
                     style={{ backgroundColor: GOLD }}
                   >
-                    {isExporting ? "جاري تجهيز البطاقة..." : "تجهيز البطاقة"}
+                    {isExporting ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        جاري التجهيز...
+                      </>
+                    ) : (
+                      "🖼️ تجهيز الصورة"
+                    )}
                   </button>
 
                   <button
@@ -857,33 +843,31 @@ function EditorPageContent() {
                   </button>
                 </div>
 
-                {showExportActions && generatedExportUrl && (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="mb-3 text-sm font-extrabold text-slate-700">
-                      البطاقة جاهزة
-                    </div>
-
-                    <div className="mb-4 flex justify-center">
-                      <img
-                        src={generatedExportUrl}
-                        alt="معاينة التصدير"
-                        className="w-28 rounded-2xl border border-slate-200 shadow-sm"
+                {/* 🔹 منطقة المعاينة + أزرار الحفظ/المشاركة (تظهر فقط بعد التجهيز) */}
+                {exportedImageDataUrl && (
+                  <div className="mt-4 rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-4 backdrop-blur-sm">
+                    <p className="mb-3 text-center text-sm font-bold text-amber-800">
+                      ✅ تم تجهيز الصورة بنجاح
+                    </p>
+                    <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner">
+                      <img 
+                        src={exportedImageDataUrl} 
+                        alt="معاينة التصدير" 
+                        className="h-36 w-full object-contain" 
                       />
                     </div>
-
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <button
-                        onClick={sharePreparedImage}
-                        className="rounded-2xl bg-emerald-600 px-5 py-3 font-extrabold text-white hover:bg-emerald-700"
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={savePreparedImage}
+                        className="rounded-xl bg-slate-900 px-4 py-2.5 font-bold text-white hover:bg-slate-800"
                       >
-                        مشاركة / حفظ
+                        📥 حفظ الصورة
                       </button>
-
-                      <button
-                        onClick={downloadPreparedImage}
-                        className="rounded-2xl bg-slate-900 px-5 py-3 font-extrabold text-white hover:bg-slate-800"
+                      <button 
+                        onClick={sharePreparedImage}
+                        className="rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white hover:bg-emerald-700"
                       >
-                        تنزيل الصورة
+                        📤 مشاركة
                       </button>
                     </div>
                   </div>
@@ -904,9 +888,10 @@ function EditorPageContent() {
                   ref={previewRef}
                   className="relative h-[711px] w-[400px] overflow-hidden rounded-[36px] bg-slate-950"
                 >
-                  {previewImageUrl ? (
+                  {imageUrl ? (
                     <img
-                      src={previewImageUrl}
+                      src={imageUrl}
+                      crossOrigin="anonymous"
                       alt="خلفية"
                       className="absolute left-1/2 top-1/2 h-full w-full object-cover"
                       style={{
@@ -920,15 +905,6 @@ function EditorPageContent() {
                       رفع صورة
                     </div>
                   )}
-
-                  <div
-                    className="absolute inset-0 z-10"
-                    style={{
-                      background: `linear-gradient(to top, rgba(0,0,0,${
-                        overlayStrength / 100
-                      }) 0%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0.08) 100%)`,
-                    }}
-                  />
 
                   <div
                     className="absolute inset-x-0 bottom-0 z-10"
@@ -951,6 +927,7 @@ function EditorPageContent() {
 
                   <img
                     src={LOGO_URL}
+                    crossOrigin="anonymous"
                     alt="شعار"
                     className="absolute right-5 top-1 z-20 w-[96px] drop-shadow-2xl"
                   />
@@ -963,7 +940,7 @@ function EditorPageContent() {
 
                   <img
                     src={LOGO_URL}
-                    alt="علامة مائية"
+                    crossOrigin="anonymous"
                     className="absolute bottom-5 left-5 z-20 w-[86px]"
                     style={{
                       opacity: watermarkOpacity,
@@ -979,17 +956,7 @@ function EditorPageContent() {
                     {subTitle.trim() && (
                       <div
                         className="mb-1 text-[20px] font-black"
-                        style={{
-                          color: subTitleColor,
-                          backgroundColor:
-                            subtitleBgOpacity > 0 ? subtitleBgColor : "transparent",
-                          opacity: 1,
-                          padding:
-                            subtitleBgOpacity > 0 ? "4px 10px" : undefined,
-                          borderRadius:
-                            subtitleBgOpacity > 0 ? "10px" : undefined,
-                          display: "inline-block",
-                        }}
+                        style={{ color: subTitleColor }}
                       >
                         {subTitle}
                       </div>
@@ -1011,19 +978,6 @@ function EditorPageContent() {
                   </div>
                 </div>
               </div>
-
-              {plainBodyPreview && (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-8 text-slate-700 shadow-sm">
-                  <div className="mb-2 font-black text-slate-800">معاينة النص</div>
-                  <div
-                    className={
-                      isPoem ? "whitespace-pre-wrap text-center" : "whitespace-pre-wrap"
-                    }
-                  >
-                    {plainBodyPreview}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}
