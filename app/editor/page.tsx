@@ -415,6 +415,33 @@ function EditorPageContent() {
     }
   };
 
+  
+  // 1️⃣ دالة إرسال الخبر إلى تويتر (المحرك)
+  const postToTwitter = async (newsTitle: string, newsId: string, imgUrl: string) => {
+    try {
+      const response = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newsTitle,
+          url: `https://almayn.com/news/${newsId}`, // رابط الخبر في موقعك
+          imageUrl: imgUrl,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showNotice("تم نشر الخبر على تويتر بنجاح ✅", "success");
+      } else {
+        console.error("Twitter Error:", data.error);
+        showNotice("حفظ الخبر بنجاح، لكن فشل نشره في تويتر", "info");
+      }
+    } catch (err) {
+      console.error("Twitter Fetch Error:", err);
+    }
+  };
+
+  // 2️⃣ دالة الحفظ الأساسية (بعد دمج تويتر فيها)
   const saveArticle = async () => {
     if (!title.trim() || !body.trim() || !imageUrl.trim()) {
       showNotice("يرجى تعبئة العنوان والنص واختيار صورة للخبر", "error");
@@ -439,16 +466,33 @@ function EditorPageContent() {
       };
 
       if (isEditMode && articleId) {
+        // حالة التعديل
         const { error } = await supabase
           .from("news_posts")
           .update(payload)
           .eq("id", articleId);
+        
         if (error) throw error;
         showNotice("تم تحديث الخبر بنجاح", "success");
+        
+        // إرسال لتويتر عند التحديث
+        await postToTwitter(title.trim(), articleId, imageUrl.trim());
+
       } else {
-        const { error } = await supabase.from("news_posts").insert([payload]);
+        // حالة خبر جديد (أضفنا هنا .select().single() لجلب الـ ID الجديد)
+        const { data, error } = await supabase
+          .from("news_posts")
+          .insert([payload])
+          .select()
+          .single();
+
         if (error) throw error;
         showNotice("تم حفظ الخبر بنجاح", "success");
+
+        // إرسال لتويتر فوراً باستخدام الـ ID المرتجع من سوبابيس
+        if (data?.id) {
+          await postToTwitter(title.trim(), data.id, imageUrl.trim());
+        }
       }
     } catch (error: any) {
       showNotice(error.message || "حدث خطأ أثناء الحفظ", "error");
@@ -457,6 +501,7 @@ function EditorPageContent() {
     }
   };
 
+  // 3️⃣ دالة تسجيل الخروج
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
