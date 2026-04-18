@@ -156,15 +156,16 @@ function HomeContent() {
                             )}
                           </span>
 
-                          <h2 className="mb-3 text-2xl font-black leading-tight text-slate-900 md:text-3xl">
-                            {heroArticle.title}
-                          </h2>
+                          {/* ✅ بعد التعديل */}
+{heroArticle.sub_title && (
+  <p className="mb-2 text-lg font-black text-amber-600">
+    {heroArticle.sub_title}
+  </p>
+)}
 
-                          {heroArticle.sub_title && (
-                            <p className="mb-4 text-base font-bold text-slate-500">
-                              {heroArticle.sub_title}
-                            </p>
-                          )}
+<h2 className="mb-3 text-2xl font-black leading-tight text-slate-900 md:text-3xl">
+  {heroArticle.title}
+</h2>
 
                           <p className="line-clamp-4 text-sm leading-7 text-slate-600">
                             {heroArticle.body.replace(/<[^>]*>?/gm, "")}
@@ -197,15 +198,16 @@ function HomeContent() {
                             {new Date(item.created_at).toLocaleDateString("ar-SA")}
                           </div>
 
-                          <h3 className="mb-3 line-clamp-2 text-xl font-black leading-snug text-slate-900 group-hover:text-primary-700">
-                            {item.title}
-                          </h3>
+                        {/* ✅ بعد التعديل */}
+{item.sub_title && (
+  <p className="mb-2 line-clamp-2 text-base font-black text-amber-600">
+    {item.sub_title}
+  </p>
+)}
 
-                          {item.sub_title && (
-                            <p className="mb-2 line-clamp-2 text-sm font-bold text-slate-500">
-                              {item.sub_title}
-                            </p>
-                          )}
+<h3 className="mb-3 line-clamp-2 text-xl font-black leading-snug text-slate-900 group-hover:text-primary-700">
+  {item.title}
+</h3>
 
                           <p className="line-clamp-3 text-sm leading-7 text-slate-600">
                             {item.body.replace(/<[^>]*>?/gm, "")}

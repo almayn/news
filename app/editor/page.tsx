@@ -1,4 +1,3 @@
-// app/editor/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -12,6 +11,11 @@ const GOLD = "#c8a96b";
 const LOGO_URL =
   "https://gjryvqpwncnkpghaiytl.supabase.co/storage/v1/object/public/fonts/almassslogo.png";
 
+const PREVIEW_WIDTH = 400;
+const PREVIEW_HEIGHT = (PREVIEW_WIDTH * 16) / 9;
+const EXPORT_WIDTH = 1080;
+const EXPORT_HEIGHT = 1920;
+
 type NoticeType = "success" | "error" | "info";
 
 interface Article {
@@ -24,41 +28,12 @@ interface Article {
   category: string;
   source?: string | null;
   author?: string | null;
+  is_poem?: boolean | null;
 }
-
-// 📱 دوال مساعدة للكشف عن الجهاز والمتصفح
-const isIOS = () => {
-  if (typeof navigator === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-};
-
-const isSafari = () => {
-  if (typeof navigator === "undefined") return false;
-  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && !/chromium/i.test(navigator.userAgent);
-};
-
-// ⏳ انتظار تحميل جميع الموارد (صور + خطوط)
-const waitForResources = async (element: HTMLElement, timeout = 12000) => {
-  const startTime = Date.now();
-  
-  const checkResources = () => {
-    const images = Array.from(element.querySelectorAll("img"));
-    const imagesLoaded = images.every(img => img.complete && img.naturalWidth > 0);
-    
-    const fontsReady = document.fonts?.status === "loaded" || !document.fonts;
-    
-    return imagesLoaded && fontsReady;
-  };
-
-  while (!checkResources() && Date.now() - startTime < timeout) {
-    await new Promise(resolve => setTimeout(resolve, 80));
-  }
-};
 
 function EditorPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [isPoem, setIsPoem] = useState(false);
 
   const articleId = searchParams.get("id");
   const isEditMode = !!articleId;
@@ -71,6 +46,7 @@ function EditorPageContent() {
   const [author, setAuthor] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [isBreaking, setIsBreaking] = useState(false);
+  const [isPoem, setIsPoem] = useState(false);
 
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSavingArticle, setIsSavingArticle] = useState(false);
@@ -78,10 +54,15 @@ function EditorPageContent() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isLoadingArticle, setIsLoadingArticle] = useState(false);
 
-  const [notice, setNotice] = useState<{ type: NoticeType; text: string } | null>(null);
+  const [generatedExportUrl, setGeneratedExportUrl] = useState("");
+  const [generatedExportName, setGeneratedExportName] = useState("");
+  const [showExportActions, setShowExportActions] = useState(false);
+  const [copiedXText, setCopiedXText] = useState(false);
+  const [isPreparingCleanExport, setIsPreparingCleanExport] = useState(false);
 
-  // 🔹 حالة جديدة: تخزين الصورة المُولَّدة للمعاينة والحفظ/المشاركة
-  const [exportedImageDataUrl, setExportedImageDataUrl] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ type: NoticeType; text: string } | null>(
+    null
+  );
 
   const [imageScale, setImageScale] = useState(1);
   const [imagePositionY, setImagePositionY] = useState(50);
@@ -123,23 +104,134 @@ function EditorPageContent() {
       month: "long",
       day: "numeric",
     });
+
     const englishNumbers = arabicDate.replace(/[٠-٩]/g, (d) =>
       String(d.charCodeAt(0) - 0x0660)
     );
+
     return englishNumbers;
   };
 
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
   const waitForImagesToLoad = async (element: HTMLElement) => {
     const images = Array.from(element.querySelectorAll("img"));
+
     await Promise.all(
       images.map((img) => {
-        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve(true);
         return new Promise((resolve) => {
-          img.onload = () => resolve(true);
-          img.onerror = () => resolve(true);
+          const done = () => resolve(true);
+          img.onload = done;
+          img.onerror = done;
         });
       })
     );
+
+    if (document.fonts && "ready" in document.fonts) {
+      await document.fonts.ready;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+  };
+
+  const waitForResources = async (element: HTMLElement | null) => {
+    if (!element) return;
+    await waitForImagesToLoad(element);
+  };
+
+  const dataUrlToBlob = async (dataUrl: string) => {
+    const res = await fetch(dataUrl);
+    return await res.blob();
+  };
+
+  const cleanupExportNode = (node?: HTMLElement | null) => {
+    if (node && node.parentNode) {
+      node.parentNode.removeChild(node);
+    }
+  };
+
+  const buildExportNode = async () => {
+    if (!previewRef.current) throw new Error("المعاينة غير جاهزة");
+
+    const clonedNode = previewRef.current.cloneNode(true) as HTMLDivElement;
+
+    clonedNode.style.width = `${EXPORT_WIDTH}px`;
+    clonedNode.style.height = `${EXPORT_HEIGHT}px`;
+    clonedNode.style.maxWidth = "none";
+    clonedNode.style.maxHeight = "none";
+    clonedNode.style.transform = "none";
+    clonedNode.style.position = "fixed";
+    clonedNode.style.left = "-99999px";
+    clonedNode.style.top = "0";
+    clonedNode.style.pointerEvents = "none";
+    clonedNode.style.zIndex = "-1";
+    clonedNode.style.borderRadius = "0px";
+
+    document.body.appendChild(clonedNode);
+    await waitForImagesToLoad(clonedNode);
+
+    return clonedNode;
+  };
+
+  const stripHtml = (html: string) =>
+    (html || "")
+      .replace(/<[^>]*>?/gm, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const truncateText = (text: string, max: number) => {
+    if (!text) return "";
+    if (text.length <= max) return text;
+    return text.slice(0, max - 1).trim() + "…";
+  };
+
+  const buildArticleUrl = (newsId: string | number) => {
+    const base =
+      typeof window !== "undefined" ? window.location.origin : "https://almasyn.com";
+    return `${base}/news/${newsId}`;
+  };
+
+  const buildXPostText = (newsTitle: string, newsId: string | number) => {
+    const articleUrl = buildArticleUrl(newsId);
+    const cleanExcerpt = truncateText(
+      (subTitle || stripHtml(body || "")).trim(),
+      180
+    );
+
+    return [truncateText(newsTitle.trim(), 100), cleanExcerpt, articleUrl]
+      .filter(Boolean)
+      .join("\n\n");
+  };
+
+  const openShareToX = (newsTitle: string, newsId: string | number) => {
+    const tweetText = buildXPostText(newsTitle, newsId);
+    const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+      tweetText
+    )}`;
+    window.open(intentUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const copyXText = async (newsTitle: string, newsId: string | number) => {
+    try {
+      const tweetText = buildXPostText(newsTitle, newsId);
+      await navigator.clipboard.writeText(tweetText);
+      setCopiedXText(true);
+      showNotice("تم نسخ نص X بنجاح", "success");
+
+      setTimeout(() => {
+        setCopiedXText(false);
+      }, 1800);
+    } catch (error) {
+      console.error(error);
+      showNotice("تعذر نسخ نص X", "error");
+    }
   };
 
   const resetForm = () => {
@@ -152,10 +244,11 @@ function EditorPageContent() {
     setImageUrl("");
     setIsBreaking(false);
     setIsPoem(false);
+
     setImageScale(1);
     setImagePositionY(50);
     setTextOffsetY(0);
-    setOverlayStrength(34);
+    setOverlayStrength(24);
     setWatermarkOpacity(0.78);
     setWatermarkScale(1);
     setOverlayBrightness(92);
@@ -163,33 +256,44 @@ function EditorPageContent() {
     setSubtitleBgColor("#000000");
     setTitleColor("#ffffff");
     setSubTitleColor(GOLD);
+    setTitleStrokeColor("#000000");
     setTitleStrokeWidth(0);
     setBlurAmount(12);
-    // 🔹 إعادة تعيين الصورة المُولَّدة
-    setExportedImageDataUrl(null);
+    setBlurOpacity(0.38);
+    setBlurColor("#000000");
+
+    setGeneratedExportUrl("");
+    setGeneratedExportName("");
+    setShowExportActions(false);
 
     if (isEditMode) {
       router.push("/editor");
       router.refresh();
     }
+
     showNotice("تم التفريغ وفتح خبر جديد", "success");
   };
 
   useEffect(() => {
     const fetchArticleForEdit = async () => {
       if (!articleId) return;
+
       try {
         setIsLoadingArticle(true);
+
         const { data, error } = await supabase
           .from("news_posts")
           .select("*")
           .eq("id", articleId)
           .single();
+
         if (error) throw error;
+
         if (!data) {
           showNotice("لم يتم العثور على الخبر المطلوب", "error");
           return;
         }
+
         const item: Article = {
           ...data,
           category: data.category || "عام",
@@ -197,6 +301,7 @@ function EditorPageContent() {
           source: data.source || "أخبار الماس",
           author: data.author || "",
         };
+
         setTitle(item.title || "");
         setSubTitle(item.sub_title || "");
         setBody(item.body || "");
@@ -205,7 +310,7 @@ function EditorPageContent() {
         setAuthor(item.author || "");
         setImageUrl(item.image_url || "");
         setIsBreaking(false);
-        setIsPoem(!!data.is_poem);
+        setIsPoem(!!item.is_poem);
       } catch (error) {
         console.error("Fetch article error:", error);
         showNotice("تعذر تحميل بيانات الخبر للتعديل", "error");
@@ -213,29 +318,33 @@ function EditorPageContent() {
         setIsLoadingArticle(false);
       }
     };
+
     fetchArticleForEdit();
   }, [articleId]);
-
-  // 🔍 تحقق من نوع الجهاز عند التحميل
-  useEffect(() => {
-    if (isIOS()) {
-      console.log("📱 iOS detected - using mobile-optimized settings");
-      if (imageScale > 1.5) setImageScale(1.5);
-    }
-  }, []);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploadingImage(true);
-    const formData = new FormData();
-    formData.append("image", file);
 
     try {
+      const localPreview = await fileToDataUrl(file);
+      setImageUrl(localPreview);
+
+      setGeneratedExportUrl("");
+      setGeneratedExportName("");
+      setShowExportActions(false);
+
+      showNotice("تم تجهيز الصورة للمعاينة", "success");
+
+      const formData = new FormData();
+      formData.append("image", file);
+
       const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+
       if (!apiKey) {
-        showNotice("مفتاح ImgBB غير موجود", "error");
+        showNotice("مفتاح ImgBB غير موجود، لكن المعاينة تعمل محليًا", "info");
         return;
       }
 
@@ -243,65 +352,66 @@ function EditorPageContent() {
         method: "POST",
         body: formData,
       });
+
       const data = await res.json();
 
       if (data?.success && data?.data?.url) {
         setImageUrl(data.data.url);
-        // 🔹 إخفاء المعاينة السابقة عند رفع صورة جديدة
-        setExportedImageDataUrl(null);
-        
-        const testImage = new Image();
-        testImage.crossOrigin = "anonymous";
-        testImage.onload = () => {
-          showNotice("تم رفع الصورة بنجاح ✓", "success");
-        };
-        testImage.onerror = () => {
-          showNotice("تم الرفع ⚠️ قد تحتاج لقطة شاشة للتصدير", "info");
-        };
-        testImage.src = data.data.url;
+        showNotice("تم رفع الصورة بنجاح", "success");
       } else {
-        showNotice("فشل رفع الصورة", "error");
+        showNotice("فشل رفع الصورة، لكن المعاينة المحلية جاهزة", "info");
       }
-    } catch {
-      showNotice("حدث خطأ أثناء رفع الصورة", "error");
+    } catch (error) {
+      console.error(error);
+      showNotice("حدث خطأ أثناء تجهيز الصورة", "error");
     } finally {
       setIsUploadingImage(false);
     }
   };
 
-  // 🔹 1️⃣ دالة تجهيز الصورة فقط (بدون تنزيل تلقائي)
-  const prepareImageForExport = async () => {
+  const prepareExportImage = async () => {
     if (!previewRef.current) return;
 
     if (!title.trim() || !imageUrl.trim()) {
-      showNotice("أدخل عنوان الخبر وارفع صورة قبل التجهيز", "error");
+      showNotice("أدخل عنوان الخبر وارفع صورة قبل التصدير", "error");
       return;
     }
 
     setIsExporting(true);
-    setExportedImageDataUrl(null);
-    showNotice("جاري تجهيز الصورة...", "info");
+    setShowExportActions(false);
+    setGeneratedExportUrl("");
+    setGeneratedExportName("");
+
+    let exportNode: HTMLDivElement | null = null;
 
     try {
-      await document.fonts?.ready;
+      setIsPreparingCleanExport(true);
+
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+
       await waitForResources(previewRef.current);
       await waitForImagesToLoad(previewRef.current);
 
-      const pixelRatio = isIOS() ? 2 : 3;
-      const element = previewRef.current;
-      
-      const dataUrl = await htmlToImage.toPng(element, {
-        pixelRatio,
+      exportNode = await buildExportNode();
+
+      const dataUrl = await htmlToImage.toPng(exportNode, {
+        pixelRatio: 1,
         cacheBust: true,
         backgroundColor: "#0f172a",
         skipFonts: false,
-        width: element.offsetWidth,
-        height: element.offsetHeight,
+        width: EXPORT_WIDTH,
+        height: EXPORT_HEIGHT,
+        canvasWidth: EXPORT_WIDTH,
+        canvasHeight: EXPORT_HEIGHT,
         style: {
+          width: `${EXPORT_WIDTH}px`,
+          height: `${EXPORT_HEIGHT}px`,
           transform: "none",
-          transformOrigin: "top left",
-          margin: "0",
-          padding: "0",
+          direction: "rtl",
+          borderRadius: "0px",
         },
         filter: (node: HTMLElement) => {
           if (node.tagName === "IMG") return true;
@@ -309,150 +419,80 @@ function EditorPageContent() {
         },
       });
 
-      // 🔹 تخزين الصورة المُولَّدة لعرض المعاينة والأزرار
-      setExportedImageDataUrl(dataUrl);
-      showNotice("✅ تم تجهيز الصورة بنجاح", "success");
+      const fileName = `almas-news-${Date.now()}.png`;
 
+      setGeneratedExportUrl(dataUrl);
+      setGeneratedExportName(fileName);
+      setShowExportActions(true);
+
+      showNotice("تم تجهيز البطاقة. الآن احفظها أو شاركها", "success");
     } catch (error: any) {
       console.error("Export error:", error);
-      
-      if (error.message?.includes("canvas") || error.message?.includes("size") || error.message?.includes("exceeded")) {
-        try {
-          showNotice("جاري المحاولة بدقة أقل...", "info");
-          
-          const fallbackDataUrl = await htmlToImage.toPng(previewRef.current, {
-            pixelRatio: 1,
-            backgroundColor: "#0f172a",
-            width: previewRef.current?.offsetWidth,
-            height: previewRef.current?.offsetHeight,
-            style: { transform: "none" },
-          });
-          
-          setExportedImageDataUrl(fallbackDataUrl);
-          showNotice("✅ تم التجهيز بدقة منخفضة", "success");
-          return;
-        } catch (fallbackErr) {
-          console.error("Fallback export failed:", fallbackErr);
-        }
-      }
-      
-      showNotice("⚠️ تعذر تجهيز الصورة، جرب مرة أخرى", "error");
-      
+      showNotice("تعذر تجهيز الصورة", "error");
     } finally {
+      cleanupExportNode(exportNode);
+      setIsPreparingCleanExport(false);
       setIsExporting(false);
     }
   };
 
-  // 🔹 2️⃣ دالة الحفظ اليدوي للصورة المُولَّدة
-  const savePreparedImage = () => {
-    if (!exportedImageDataUrl) return;
-    
-    const filename = `almas-news-${Date.now()}.png`;
-    
-    if (isSafari()) {
-      // سفاري يحتاج معالجة خاصة
-      fetch(exportedImageDataUrl)
-        .then(res => res.blob())
-        .then(blob => {
-          const blobUrl = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = blobUrl;
-          link.download = filename;
-          link.style.display = "none";
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 500);
-          showNotice("✅ تم حفظ الصورة", "success");
-        })
-        .catch(() => {
-          // fallback
-          const link = document.createElement("a");
-          link.href = exportedImageDataUrl;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          showNotice("✅ تم حفظ الصورة", "success");
-        });
-    } else {
-      const link = document.createElement("a");
-      link.href = exportedImageDataUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showNotice("✅ تم حفظ الصورة", "success");
-    }
+  const downloadPreparedImage = () => {
+    if (!generatedExportUrl) return;
+
+    const link = document.createElement("a");
+    link.download = generatedExportName || `almas-news-${Date.now()}.png`;
+    link.href = generatedExportUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  // 🔹 3️⃣ دالة المشاركة اليدوية للصورة المُولَّدة
   const sharePreparedImage = async () => {
-    if (!exportedImageDataUrl) return;
-    
+    if (!generatedExportUrl) return;
+
     try {
-      const response = await fetch(exportedImageDataUrl);
-      const blob = await response.blob();
-      const filename = `almas-news-${Date.now()}.png`;
-      const file = new File([blob], filename, { type: "image/png" });
-      
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      const blob = await dataUrlToBlob(generatedExportUrl);
+      const file = new File(
+        [blob],
+        generatedExportName || `almas-news-${Date.now()}.png`,
+        { type: "image/png" }
+      );
+
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
         await navigator.share({
           files: [file],
-          title: title.trim(),
-          text: subTitle.trim() || "أخبار الماس",
+          title: title.trim() || "خبر الماس",
+          text: title.trim() || "خبر الماس",
         });
-        showNotice("✅ تمت المشاركة", "success");
-      } else {
-        // fallback: حفظ إذا لم يدعم المشاركة
-        savePreparedImage();
+        showNotice("تم فتح نافذة المشاركة", "success");
+        return;
       }
-    } catch (err: any) {
-      if (err.name !== "AbortError") {
-        console.error("Share failed:", err);
-        savePreparedImage();
-      }
+
+      downloadPreparedImage();
+      showNotice("المشاركة المباشرة غير مدعومة هنا، تم تحويلك للحفظ", "info");
+    } catch (error) {
+      console.error("Share error:", error);
+      showNotice("تعذر فتح المشاركة، استخدم الحفظ", "error");
     }
   };
 
-  
-  // 1️⃣ دالة إرسال الخبر إلى تويتر (المحرك)
-  const postToTwitter = async (newsTitle: string, newsId: string, imgUrl: string) => {
-    try {
-      const response = await fetch("/api/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newsTitle,
-          url: `https://almayn.com/news/${newsId}`, // رابط الخبر في موقعك
-          imageUrl: imgUrl,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        showNotice("تم نشر الخبر على تويتر بنجاح ✅", "success");
-      } else {
-        console.error("Twitter Error:", data.error);
-        showNotice("حفظ الخبر بنجاح، لكن فشل نشره في تويتر", "info");
-      }
-    } catch (err) {
-      console.error("Twitter Fetch Error:", err);
-    }
-  };
-
-  // 2️⃣ دالة الحفظ الأساسية (بعد دمج تويتر فيها)
   const saveArticle = async () => {
     if (!title.trim() || !body.trim() || !imageUrl.trim()) {
       showNotice("يرجى تعبئة العنوان والنص واختيار صورة للخبر", "error");
       return;
     }
+
     if (category === "مقالات" && !author.trim()) {
       showNotice("يرجى إدخال اسم الكاتب عند اختيار قسم المقالات", "error");
       return;
     }
 
     setIsSavingArticle(true);
+
     try {
       const payload: Record<string, any> = {
         title: title.trim(),
@@ -466,20 +506,19 @@ function EditorPageContent() {
       };
 
       if (isEditMode && articleId) {
-        // حالة التعديل
         const { error } = await supabase
           .from("news_posts")
           .update(payload)
           .eq("id", articleId);
-        
-        if (error) throw error;
-        showNotice("تم تحديث الخبر بنجاح", "success");
-        
-        // إرسال لتويتر عند التحديث
-        await postToTwitter(title.trim(), articleId, imageUrl.trim());
 
+        if (error) throw error;
+
+        showNotice("تم تحديث الخبر بنجاح", "success");
+
+        setTimeout(() => {
+          openShareToX(title.trim(), articleId);
+        }, 350);
       } else {
-        // حالة خبر جديد (أضفنا هنا .select().single() لجلب الـ ID الجديد)
         const { data, error } = await supabase
           .from("news_posts")
           .insert([payload])
@@ -487,26 +526,30 @@ function EditorPageContent() {
           .single();
 
         if (error) throw error;
+
         showNotice("تم حفظ الخبر بنجاح", "success");
 
-        // إرسال لتويتر فوراً باستخدام الـ ID المرتجع من سوبابيس
         if (data?.id) {
-          await postToTwitter(title.trim(), data.id, imageUrl.trim());
+          setTimeout(() => {
+            openShareToX(title.trim(), data.id);
+          }, 350);
         }
       }
     } catch (error: any) {
+      console.error(error);
       showNotice(error.message || "حدث خطأ أثناء الحفظ", "error");
     } finally {
       setIsSavingArticle(false);
     }
   };
 
-  // 3️⃣ دالة تسجيل الخروج
   const handleLogout = async () => {
     setIsLoggingOut(true);
+
     try {
       const res = await fetch("/api/admin-logout", { method: "POST" });
       if (!res.ok) throw new Error();
+
       router.push("/secret-entry");
       router.refresh();
     } catch {
@@ -517,22 +560,15 @@ function EditorPageContent() {
   };
 
   const imageTransform = `translate(-50%, -${imagePositionY}%) scale(${imageScale})`;
-  const textBlockBottom = `${100 + textOffsetY}px`;
+  const textBlockBottom = `${104 + textOffsetY}px`;
 
-  // 🌟 أنماط العناوين الفخمة والبارزة
-const mainTitleStyle = {
-  color: titleColor,
-  WebkitTextStroke: `${titleStrokeWidth}px ${titleStrokeColor}`,
-  textShadow: `2px 2px 0px #000, 0 0 20px rgba(0,0,0,0.7), 0 0 40px ${titleStrokeColor}50`,
-  letterSpacing: '0.02em',
-};
-
-const subtitleStyle = {
-  color: subTitleColor,
-  textShadow: '1px 1px 0px #000, 0 0 12px rgba(0,0,0,0.6)',
-  letterSpacing: '0.04em',
-  fontWeight: '900',
-};
+  const textStrokeStyle =
+    titleStrokeWidth > 0
+      ? {
+          WebkitTextStroke: `${titleStrokeWidth}px ${titleStrokeColor}`,
+          textShadow: `0 0 15px ${titleStrokeColor}80`,
+        }
+      : {};
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 md:p-8" dir="rtl">
@@ -615,14 +651,20 @@ const subtitleStyle = {
                     disabled={isUploadingImage}
                     className="block w-full text-sm text-slate-500 file:ml-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-slate-900 file:px-5 file:py-2.5 file:text-sm file:font-bold file:text-white"
                   />
+
                   {imageUrl && (
                     <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
                       <img
                         src={imageUrl}
                         alt="معاينة"
                         className="h-56 w-full object-cover"
-                        crossOrigin="anonymous"
                       />
+                    </div>
+                  )}
+
+                  {isUploadingImage && (
+                    <div className="mt-3 text-sm font-bold text-slate-500">
+                      جاري رفع الصورة...
                     </div>
                   )}
                 </div>
@@ -657,6 +699,20 @@ const subtitleStyle = {
                     />
                   </div>
                 </div>
+
+                {category === "مقالات" && (
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-slate-700">
+                      اسم الكاتب
+                    </label>
+                    <input
+                      type="text"
+                      value={author}
+                      onChange={(e) => setAuthor(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none focus:bg-white"
+                    />
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -734,6 +790,7 @@ const subtitleStyle = {
                           className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
                         />
                       </div>
+
                       <div>
                         <label className="mb-1 block text-xs font-bold text-slate-500">
                           لون إحاطة العنوان
@@ -759,6 +816,7 @@ const subtitleStyle = {
                           className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
                         />
                       </div>
+
                       <div>
                         <div className="flex justify-between text-xs font-bold text-slate-500">
                           <span>سمك الإحاطة</span>
@@ -782,7 +840,7 @@ const subtitleStyle = {
                   <div className="grid grid-cols-1 gap-4 border-t border-amber-200 pt-4 md:grid-cols-3">
                     <div>
                       <div className="flex justify-between text-xs font-bold text-slate-500">
-                        <span>قوة التمويه (Blur)</span>
+                        <span>قوة التمويه</span>
                         <span>{blurAmount}px</span>
                       </div>
                       <input
@@ -794,6 +852,7 @@ const subtitleStyle = {
                         className="w-full"
                       />
                     </div>
+
                     <div>
                       <div className="flex justify-between text-xs font-bold text-slate-500">
                         <span>شفافية الخلفية</span>
@@ -809,6 +868,7 @@ const subtitleStyle = {
                         className="w-full"
                       />
                     </div>
+
                     <div>
                       <label className="mb-1 block text-xs font-bold text-slate-500">
                         لون الخلفية
@@ -839,6 +899,7 @@ const subtitleStyle = {
                         className="w-full"
                       />
                     </div>
+
                     <div>
                       <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
                         <span>رفع / خفض النص</span>
@@ -856,35 +917,47 @@ const subtitleStyle = {
                   </div>
                 </div>
 
-                {/* 🔹 أزرار التحكم - تم تعديل زر التصدير */}
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <button
                     onClick={saveArticle}
-                    disabled={isSavingArticle || isUploadingImage}
+                    disabled={isSavingArticle}
                     className="rounded-2xl bg-slate-900 px-6 py-3.5 font-extrabold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
                     {isSavingArticle
                       ? "جاري الحفظ..."
                       : isEditMode
-                      ? "تحديث الخبر"
-                      : "حفظ الخبر"}
+                      ? "تحديث الخبر ثم فتح X"
+                      : "حفظ الخبر ثم فتح X"}
                   </button>
 
-                  {/* 🔹 زر تجهيز الصورة فقط */}
                   <button
-                    onClick={prepareImageForExport}
-                    disabled={isExporting || isUploadingImage || !imageUrl}
-                    className="rounded-2xl px-6 py-3.5 font-extrabold text-white disabled:opacity-60 flex items-center justify-center gap-2"
-                    style={{ backgroundColor: GOLD }}
+                    onClick={() => {
+                      if (!title.trim()) {
+                        showNotice("أضف عنوان الخبر أولًا", "error");
+                        return;
+                      }
+
+                      const targetId = isEditMode && articleId ? articleId : "preview";
+                      openShareToX(title.trim(), targetId);
+                    }}
+                    className="rounded-2xl bg-black px-6 py-3.5 font-extrabold text-white hover:opacity-90"
                   >
-                    {isExporting ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        جاري التجهيز...
-                      </>
-                    ) : (
-                      "🖼️ تجهيز الصورة"
-                    )}
+                    مشاركة إلى X
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (!title.trim()) {
+                        showNotice("أضف عنوان الخبر أولًا", "error");
+                        return;
+                      }
+
+                      const targetId = isEditMode && articleId ? articleId : "preview";
+                      copyXText(title.trim(), targetId);
+                    }}
+                    className="rounded-2xl bg-sky-600 px-6 py-3.5 font-extrabold text-white hover:bg-sky-700"
+                  >
+                    {copiedXText ? "تم النسخ" : "نسخ نص X"}
                   </button>
 
                   <button
@@ -895,28 +968,28 @@ const subtitleStyle = {
                   </button>
                 </div>
 
-                {/* 🔹 منطقة المعاينة + أزرار الحفظ/المشاركة (تظهر فقط بعد التجهيز) */}
-                {exportedImageDataUrl && (
-                  <div className="mt-4 rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-4 backdrop-blur-sm">
-                    <p className="mb-3 text-center text-sm font-bold text-amber-800">
-                      ✅ تم تجهيز الصورة 
-                    </p>
-                   
-<div className="mb-4 overflow-hidden rounded-[4px] border border-slate-200 bg-white shadow-inner">
-  <img 
-    src={exportedImageDataUrl} 
-    alt="معاينة التصدير" 
-    className="h-36 w-full object-contain" 
-  />
-</div>
+                {showExportActions && generatedExportUrl && (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="mb-3 text-sm font-extrabold text-slate-700">
+                      البطاقة جاهزة
+                    </div>
+
+                    <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner">
+                      <img
+                        src={generatedExportUrl}
+                        alt="معاينة التصدير"
+                        className="h-36 w-full object-contain"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
-                      <button 
-                        onClick={savePreparedImage}
+                      <button
+                        onClick={downloadPreparedImage}
                         className="rounded-xl bg-slate-900 px-4 py-2.5 font-bold text-white hover:bg-slate-800"
                       >
                         📥 حفظ الصورة
                       </button>
-                      <button 
+                      <button
                         onClick={sharePreparedImage}
                         className="rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white hover:bg-emerald-700"
                       >
@@ -939,20 +1012,25 @@ const subtitleStyle = {
               <div className="flex justify-center rounded-3xl bg-slate-200 p-4 md:p-6">
                 <div
                   ref={previewRef}
-                  className="relative h-[640px] w-[360px] sm:h-[711px] sm:w-[400px] overflow-hidden rounded-[8px] sm:rounded-[24px] bg-slate-950"
->
+                  className={`relative overflow-hidden bg-slate-950 ${
+                    isPreparingCleanExport ? "rounded-none" : "rounded-[8px]"
+                  }`}
+                  style={{
+                    width: `${PREVIEW_WIDTH}px`,
+                    height: `${PREVIEW_HEIGHT}px`,
+                  }}
+                >
                   {imageUrl ? (
                     <img
-  src={imageUrl}
-  crossOrigin="anonymous"
-  alt="خلفية"
-  className="absolute left-1/2 top-1/2 h-full w-full object-cover"
-  style={{
-    transform: imageTransform,
-    transformOrigin: "center center",
-    filter: `brightness(${overlayBrightness}%)`,
-  }}
-/>
+                      src={imageUrl}
+                      alt="خلفية"
+                      className="absolute left-1/2 top-1/2 h-full w-full object-cover"
+                      style={{
+                        transform: imageTransform,
+                        transformOrigin: "center center",
+                        filter: `brightness(${overlayBrightness}%)`,
+                      }}
+                    />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-800 text-slate-300">
                       رفع صورة
@@ -960,30 +1038,50 @@ const subtitleStyle = {
                   )}
 
                   <div
-                    className="absolute inset-x-0 bottom-0 z-10"
+                    className="absolute inset-0 z-10"
                     style={{
-                      height: "45%",
-                      backgroundColor: blurColor,
-                      opacity: blurOpacity,
-                      backdropFilter: `blur(${blurAmount}px)`,
-                      WebkitBackdropFilter: `blur(${blurAmount}px)`,
-                      maskImage:
-                        "linear-gradient(to top, black 30%, transparent 100%)",
-                      WebkitMaskImage:
-                        "linear-gradient(to top, black 30%, transparent 100%)",
+                      background: `linear-gradient(to top, rgba(0,0,0,${
+                        overlayStrength / 100
+                      }) 0%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0.08) 100%)`,
                     }}
+                  />
+
+                  <div
+                    className="absolute inset-x-0 bottom-0 z-10"
+                    style={
+                      isPreparingCleanExport
+                        ? {
+                            height: "45%",
+                            background: `linear-gradient(to top,
+                              rgba(0,0,0,${Math.min(blurOpacity + 0.18, 0.72)}) 0%,
+                              rgba(0,0,0,${Math.min(blurOpacity, 0.45)}) 38%,
+                              rgba(0,0,0,0.08) 75%,
+                              rgba(0,0,0,0) 100%
+                            )`,
+                          }
+                        : {
+                            height: "45%",
+                            backgroundColor: blurColor,
+                            opacity: blurOpacity,
+                            backdropFilter: `blur(${blurAmount}px)`,
+                            WebkitBackdropFilter: `blur(${blurAmount}px)`,
+                            maskImage:
+                              "linear-gradient(to top, black 30%, transparent 100%)",
+                            WebkitMaskImage:
+                              "linear-gradient(to top, black 30%, transparent 100%)",
+                          }
+                    }
                   />
 
                   <div className="absolute left-5 top-7 z-20 text-[13px] font-black text-white drop-shadow-lg">
                     {formatDate()}
                   </div>
 
-                <img
-  src={LOGO_URL}
-  crossOrigin="anonymous"
-  alt="شعار"
-  className="absolute right-5 -top-2 z-20 w-[96px] drop-shadow-2xl"
-/>
+                  <img
+                    src={LOGO_URL}
+                    alt="شعار"
+                    className="absolute right-5 top-1 z-20 w-[96px] drop-shadow-2xl"
+                  />
 
                   {isBreaking && (
                     <div className="absolute right-10 top-[74px] z-20 rounded-lg bg-red-500 px-3 py-1 text-sm font-black text-white shadow-lg">
@@ -993,8 +1091,8 @@ const subtitleStyle = {
 
                   <img
                     src={LOGO_URL}
-                    crossOrigin="anonymous"
-                    className="absolute bottom-1 left-5 z-20 w-[86px]"
+                    alt="علامة مائية"
+                    className="absolute bottom-5 left-5 z-20 w-[86px]"
                     style={{
                       opacity: watermarkOpacity,
                       transform: `scale(${watermarkScale})`,
@@ -1002,33 +1100,58 @@ const subtitleStyle = {
                     }}
                   />
 
-                  {/* ✅ استبدل الـ div الحاوي للعنوانين بهذا الكود */}
-<div className="absolute inset-x-0 z-20 px-4" style={{ bottom: textBlockBottom }}>
-  {subTitle.trim() && (
-    <div
-      className="mb-1 text-[22px] text-right"
-      style={subtitleStyle}
-    >
-      {subTitle}
-    </div>
-  )}
+                  <div
+                    className="absolute inset-x-0 z-20 px-4"
+                    style={{ bottom: textBlockBottom }}
+                  >
+                    {subTitle.trim() && (
+                      <div
+                        className="mb-1 text-[20px] font-black"
+                        style={{
+                          color: subTitleColor,
+                          backgroundColor:
+                            subtitleBgOpacity > 0 ? subtitleBgColor : "transparent",
+                          opacity: 1,
+                          padding:
+                            subtitleBgOpacity > 0 ? "4px 10px" : undefined,
+                          borderRadius:
+                            subtitleBgOpacity > 0 ? "10px" : undefined,
+                          display: "inline-block",
+                        }}
+                      >
+                        {subTitle}
+                      </div>
+                    )}
 
-  <h1
-    className="text-right text-[34px] font-black leading-[1.22]"
-    style={mainTitleStyle}
-  >
-    {title.trim() || "عنوان الخبر"}
-  </h1>
-</div>
+                    <h1
+                      className="text-right text-[34px] font-black leading-[1.22] drop-shadow-2xl"
+                      style={{ color: titleColor, ...textStrokeStyle }}
+                    >
+                      {title.trim() || "عنوان الخبر"}
+                    </h1>
+                  </div>
 
-                  <div className="absolute bottom-1 left-8 right-8 z-10">
+                  <div className="absolute bottom-14 left-8 right-8 z-20">
                     <div className="mb-3 h-px bg-white/25" />
-                    <div className="text-right text-[15px] font-black uppercase tracking-[0.04em] text-white/95">
+                    <div className="text-right text-[15px] font-black uppercase tracking-[0.08em] text-white/95">
                       almayn
                     </div>
                   </div>
                 </div>
               </div>
+
+              {plainBodyPreview && (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-8 text-slate-700 shadow-sm">
+                  <div className="mb-2 font-black text-slate-800">معاينة النص</div>
+                  <div
+                    className={
+                      isPoem ? "whitespace-pre-wrap text-center" : "whitespace-pre-wrap"
+                    }
+                  >
+                    {plainBodyPreview}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
