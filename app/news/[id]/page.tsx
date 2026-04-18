@@ -15,7 +15,7 @@ interface Article {
   category: string;
   source?: string;
   author?: string;
-  is_poem?: boolean; // 👈 جديد
+  is_poem?: boolean;
 }
 
 export async function generateMetadata({
@@ -33,21 +33,34 @@ export async function generateMetadata({
 
   if (!data) {
     return {
-      title: "خبر غير موجود",
+      title: "خبر غير موجود | أخبار الماس",
+      description: "الخبر المطلوب غير موجود.",
     };
   }
 
-  const title = data.title;
+  const cleanText = (data.body || "")
+    .replace(/<[^>]*>?/gm, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const title = data.title?.trim() || "أخبار الماس";
   const description =
-    data.sub_title || data.body?.replace(/<[^>]*>?/gm, "").slice(0, 120);
-  const image = data.image_url;
+    data.sub_title?.trim() ||
+    cleanText.slice(0, 160) ||
+    "تابع الخبر كاملًا عبر أخبار الماس.";
+
+  const image =
+    data.image_url?.trim() || "https://almasyn.com/default-news.jpg";
 
   const url = `https://almasyn.com/news/${id}`;
 
   return {
+    metadataBase: new URL("https://almasyn.com"),
     title,
     description,
-
+    alternates: {
+      canonical: url,
+    },
     openGraph: {
       title,
       description,
@@ -58,12 +71,12 @@ export async function generateMetadata({
           url: image,
           width: 1200,
           height: 630,
+          alt: title,
         },
       ],
       locale: "ar_SA",
       type: "article",
     },
-
     twitter: {
       card: "summary_large_image",
       title,
@@ -97,6 +110,7 @@ function renderPoem(body: string) {
     </div>
   );
 }
+
 async function getArticle(id: string): Promise<Article | null> {
   const { data, error } = await supabase
     .from("news_posts")
@@ -111,7 +125,7 @@ async function getArticle(id: string): Promise<Article | null> {
     category: data.category || "عام",
     body: data.body || data.content || "لا يوجد تفاصيل للخبر.",
     source: data.source || "أخبار الماس",
-    is_poem: data.is_poem || false, // 👈 جديد
+    is_poem: data.is_poem || false,
   };
 }
 
@@ -160,21 +174,22 @@ export default async function NewsDetailsPage({
               )}
             </div>
 
-            <h1 className="mb-4 text-3xl font-black leading-tight text-slate-900 md:text-5xl">
-              {article.title}
-            </h1>
+           {/* ✅ العنوان الثانوي أولاً (أكبر حجمًا) */}
+{article.sub_title && (
+  <p className="mb-3 text-xl font-black leading-9 text-amber-600 md:text-2xl">
+    {article.sub_title}
+  </p>
+)}
 
-            {article.sub_title && (
-              <p className="mb-6 text-lg font-bold leading-8 text-slate-500 md:text-xl">
-                {article.sub_title}
-              </p>
-            )}
+{/* ✅ العنوان الرئيسي ثانياً */}
+<h1 className="mb-6 text-3xl font-black leading-tight text-slate-900 md:text-5xl">
+  {article.title}
+</h1>
 
             <div className="mb-8">
               <AdminEditButton articleId={article.id} />
             </div>
 
-            {/* 👇 هنا التغيير */}
             {article.is_poem ? (
               <div className="poem-wrapper">
                 {renderPoem(article.body)}
