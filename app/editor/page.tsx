@@ -949,7 +949,7 @@ const subtitleStyle = {
                   <img
                     src={LOGO_URL}
                     crossOrigin="anonymous"
-                    className="absolute bottom-2 left-5 z-20 w-[86px]"
+                    className="absolute bottom-1 left-5 z-20 w-[86px]"
                     style={{
                       opacity: watermarkOpacity,
                       transform: `scale(${watermarkScale})`,
@@ -976,7 +976,7 @@ const subtitleStyle = {
   </h1>
 </div>
 
-                  <div className="absolute bottom-5 left-8 right-8 z-10">
+                  <div className="absolute bottom-1 left-8 right-8 z-10">
                     <div className="mb-3 h-px bg-white/25" />
                     <div className="text-right text-[15px] font-black uppercase tracking-[0.04em] text-white/95">
                       almayn
