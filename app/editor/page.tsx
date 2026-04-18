@@ -472,15 +472,22 @@ function EditorPageContent() {
   };
 
   const imageTransform = `translate(-50%, -${imagePositionY}%) scale(${imageScale})`;
-  const textBlockBottom = `${104 + textOffsetY}px`;
+  const textBlockBottom = `${100 + textOffsetY}px`;
 
-  const textStrokeStyle =
-    titleStrokeWidth > 0
-      ? {
-          WebkitTextStroke: `${titleStrokeWidth}px ${titleStrokeColor}`,
-          textShadow: `0 0 15px ${titleStrokeColor}80`,
-        }
-      : {};
+  // 🌟 أنماط العناوين الفخمة والبارزة
+const mainTitleStyle = {
+  color: titleColor,
+  WebkitTextStroke: `${titleStrokeWidth}px ${titleStrokeColor}`,
+  textShadow: `2px 2px 0px #000, 0 0 20px rgba(0,0,0,0.7), 0 0 40px ${titleStrokeColor}50`,
+  letterSpacing: '0.02em',
+};
+
+const subtitleStyle = {
+  color: subTitleColor,
+  textShadow: '1px 1px 0px #000, 0 0 12px rgba(0,0,0,0.6)',
+  letterSpacing: '0.04em',
+  fontWeight: '900',
+};
 
   return (
     <div className="min-h-screen bg-slate-100 p-4 md:p-8" dir="rtl">
@@ -926,12 +933,12 @@ function EditorPageContent() {
                     {formatDate()}
                   </div>
 
-                  <img
-                    src={LOGO_URL}
-                    crossOrigin="anonymous"
-                    alt="شعار"
-                    className="absolute right-5 top-1 z-20 w-[96px] drop-shadow-2xl"
-                  />
+                <img
+  src={LOGO_URL}
+  crossOrigin="anonymous"
+  alt="شعار"
+  className="absolute right-5 -top-2 z-20 w-[96px] drop-shadow-2xl"
+/>
 
                   {isBreaking && (
                     <div className="absolute right-10 top-[74px] z-20 rounded-lg bg-red-500 px-3 py-1 text-sm font-black text-white shadow-lg">
@@ -942,7 +949,7 @@ function EditorPageContent() {
                   <img
                     src={LOGO_URL}
                     crossOrigin="anonymous"
-                    className="absolute bottom-5 left-5 z-20 w-[86px]"
+                    className="absolute bottom-2 left-5 z-20 w-[86px]"
                     style={{
                       opacity: watermarkOpacity,
                       transform: `scale(${watermarkScale})`,
@@ -950,30 +957,28 @@ function EditorPageContent() {
                     }}
                   />
 
-                  <div
-                    className="absolute inset-x-0 z-20 px-4"
-                    style={{ bottom: textBlockBottom }}
-                  >
-                    {subTitle.trim() && (
-                      <div
-                        className="mb-1 text-[20px] font-black"
-                        style={{ color: subTitleColor }}
-                      >
-                        {subTitle}
-                      </div>
-                    )}
+                  {/* ✅ استبدل الـ div الحاوي للعنوانين بهذا الكود */}
+<div className="absolute inset-x-0 z-20 px-4" style={{ bottom: textBlockBottom }}>
+  {subTitle.trim() && (
+    <div
+      className="mb-1 text-[22px] text-right"
+      style={subtitleStyle}
+    >
+      {subTitle}
+    </div>
+  )}
 
-                    <h1
-                      className="text-right text-[34px] font-black leading-[1.22] drop-shadow-2xl"
-                      style={{ color: titleColor, ...textStrokeStyle }}
-                    >
-                      {title.trim() || "عنوان الخبر"}
-                    </h1>
-                  </div>
+  <h1
+    className="text-right text-[34px] font-black leading-[1.22]"
+    style={mainTitleStyle}
+  >
+    {title.trim() || "عنوان الخبر"}
+  </h1>
+</div>
 
-                  <div className="absolute bottom-14 left-8 right-8 z-20">
+                  <div className="absolute bottom-5 left-8 right-8 z-10">
                     <div className="mb-3 h-px bg-white/25" />
-                    <div className="text-right text-[15px] font-black uppercase tracking-[0.08em] text-white/95">
+                    <div className="text-right text-[15px] font-black uppercase tracking-[0.04em] text-white/95">
                       almayn
                     </div>
                   </div>
