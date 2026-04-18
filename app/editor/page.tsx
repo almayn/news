@@ -1,3 +1,4 @@
+// app/editor/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -25,6 +26,35 @@ interface Article {
   author?: string | null;
 }
 
+// 📱 دوال مساعدة للكشف عن الجهاز والمتصفح
+const isIOS = () => {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+};
+
+const isSafari = () => {
+  if (typeof navigator === "undefined") return false;
+  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && !/chromium/i.test(navigator.userAgent);
+};
+
+// ⏳ انتظار تحميل جميع الموارد (صور + خطوط)
+const waitForResources = async (element: HTMLElement, timeout = 12000) => {
+  const startTime = Date.now();
+  
+  const checkResources = () => {
+    const images = Array.from(element.querySelectorAll("img"));
+    const imagesLoaded = images.every(img => img.complete && img.naturalWidth > 0);
+    
+    const fontsReady = document.fonts?.status === "loaded" || !document.fonts;
+    
+    return imagesLoaded && fontsReady;
+  };
+
+  while (!checkResources() && Date.now() - startTime < timeout) {
+    await new Promise(resolve => setTimeout(resolve, 80));
+  }
+};
+
 function EditorPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -48,9 +78,7 @@ function EditorPageContent() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isLoadingArticle, setIsLoadingArticle] = useState(false);
 
-  const [notice, setNotice] = useState<{ type: NoticeType; text: string } | null>(
-    null
-  );
+  const [notice, setNotice] = useState<{ type: NoticeType; text: string } | null>(null);
 
   const [imageScale, setImageScale] = useState(1);
   const [imagePositionY, setImagePositionY] = useState(50);
@@ -92,11 +120,9 @@ function EditorPageContent() {
       month: "long",
       day: "numeric",
     });
-
     const englishNumbers = arabicDate.replace(/[٠-٩]/g, (d) =>
       String(d.charCodeAt(0) - 0x0660)
     );
-
     return englishNumbers;
   };
 
@@ -141,30 +167,24 @@ function EditorPageContent() {
       router.push("/editor");
       router.refresh();
     }
-
     showNotice("تم التفريغ وفتح خبر جديد", "success");
   };
 
   useEffect(() => {
     const fetchArticleForEdit = async () => {
       if (!articleId) return;
-
       try {
         setIsLoadingArticle(true);
-
         const { data, error } = await supabase
           .from("news_posts")
           .select("*")
           .eq("id", articleId)
           .single();
-
         if (error) throw error;
-
         if (!data) {
           showNotice("لم يتم العثور على الخبر المطلوب", "error");
           return;
         }
-
         const item: Article = {
           ...data,
           category: data.category || "عام",
@@ -172,7 +192,6 @@ function EditorPageContent() {
           source: data.source || "أخبار الماس",
           author: data.author || "",
         };
-
         setTitle(item.title || "");
         setSubTitle(item.sub_title || "");
         setBody(item.body || "");
@@ -189,9 +208,17 @@ function EditorPageContent() {
         setIsLoadingArticle(false);
       }
     };
-
     fetchArticleForEdit();
   }, [articleId]);
+
+  // 🔍 تحقق من نوع الجهاز عند التحميل
+  useEffect(() => {
+    if (isIOS()) {
+      console.log("📱 iOS detected - using mobile-optimized settings");
+      // تقليل الدقة الافتراضية لأجهزة آيفون
+      if (imageScale > 1.5) setImageScale(1.5);
+    }
+  }, []);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -203,7 +230,6 @@ function EditorPageContent() {
 
     try {
       const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
-
       if (!apiKey) {
         showNotice("مفتاح ImgBB غير موجود", "error");
         return;
@@ -213,12 +239,21 @@ function EditorPageContent() {
         method: "POST",
         body: formData,
       });
-
       const data = await res.json();
 
       if (data?.success && data?.data?.url) {
         setImageUrl(data.data.url);
-        showNotice("تم رفع الصورة بنجاح", "success");
+        
+        // ✅ اختبار توافق الصورة مع التصدير
+        const testImage = new Image();
+        testImage.crossOrigin = "anonymous";
+        testImage.onload = () => {
+          showNotice("تم رفع الصورة بنجاح ✓", "success");
+        };
+        testImage.onerror = () => {
+          showNotice("تم الرفع ⚠️ قد تحتاج لقطة شاشة للتصدير", "info");
+        };
+        testImage.src = data.data.url;
       } else {
         showNotice("فشل رفع الصورة", "error");
       }
@@ -229,6 +264,7 @@ function EditorPageContent() {
     }
   };
 
+  // 🖼️ الدالة الرئيسية للتصدير - مُحدَّثة لدعم سفاري والجوال
   const exportAsImage = async () => {
     if (!previewRef.current) return;
 
@@ -238,26 +274,126 @@ function EditorPageContent() {
     }
 
     setIsExporting(true);
+    showNotice("جاري تجهيز الصورة...", "info");
 
     try {
-      await document.fonts.ready;
+      // 1️⃣ انتظار تحميل الخطوط والصور
+      await document.fonts?.ready;
+      await waitForResources(previewRef.current);
       await waitForImagesToLoad(previewRef.current);
 
-      const dataUrl = await htmlToImage.toPng(previewRef.current, {
-        pixelRatio: 3,
+      // 2️⃣ إعدادات متوافقة مع الجوال
+      const pixelRatio = isIOS() ? 2 : 3;
+      const element = previewRef.current;
+      
+      // 3️⃣ توليد الصورة مع معالجة خاصة لسفاري
+      const dataUrl = await htmlToImage.toPng(element, {
+        pixelRatio,
         cacheBust: true,
         backgroundColor: "#0f172a",
         skipFonts: false,
+        width: element.offsetWidth,
+        height: element.offsetHeight,
+        style: {
+          transform: "none",
+          transformOrigin: "top left",
+          margin: "0",
+          padding: "0",
+        },
+        filter: (node: HTMLElement) => {
+          if (node.tagName === "IMG") return true;
+          return !node.classList?.contains("no-export");
+        },
       });
 
-      const link = document.createElement("a");
-      link.download = `almas-news-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
+      const filename = `almas-news-${Date.now()}.png`;
 
-      showNotice("تم تجهيز البطاقة للتصدير", "success");
-    } catch {
-      showNotice("تعذر تصدير الصورة", "error");
+      // 📱 دعم المشاركة المباشرة على الجوال (Web Share API)
+      if (typeof navigator.share !== "undefined" && navigator.canShare) {
+        try {
+          const response = await fetch(dataUrl);
+          const blob = await response.blob();
+          const file = new File([blob], filename, { type: "image/png" });
+          
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: title.trim(),
+              text: subTitle.trim() || "أخبار الماس",
+            });
+            showNotice("✅ تمت المشاركة بنجاح", "success");
+            return;
+          }
+        } catch (shareErr: any) {
+          if (shareErr?.name !== "AbortError") {
+            console.warn("Share failed, falling back to download:", shareErr);
+          }
+        }
+      }
+
+      // 💾 التنزيل التقليدي مع معالجة خاصة لسفاري
+      if (isSafari()) {
+        // سفاري يحتاج Blob URL بدلاً من data URL
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = filename;
+        
+        // إضافة مؤقتة للـ DOM لضمان عمل النقر
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // تنظيف الـ Blob URL بعد فترة قصيرة
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 500);
+      } else {
+        // الطريقة العادية للمتصفحات الأخرى
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      showNotice("✅ تم تجهيز البطاقة للتصدير", "success");
+
+    } catch (error: any) {
+      console.error("Export error:", error);
+      
+      // 🔄 محاولة بديلة بدقة أقل إذا فشلت المحاولة الأولى
+      if (error.message?.includes("canvas") || error.message?.includes("size") || error.message?.includes("exceeded")) {
+        try {
+          showNotice("جاري المحاولة بدقة أقل...", "info");
+          
+          const fallbackDataUrl = await htmlToImage.toPng(previewRef.current, {
+            pixelRatio: 1,
+            backgroundColor: "#0f172a",
+            width: previewRef.current?.offsetWidth,
+            height: previewRef.current?.offsetHeight,
+            style: { transform: "none" },
+          });
+          
+          const link = document.createElement("a");
+          link.download = `almas-news-low-${Date.now()}.png`;
+          link.href = fallbackDataUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          showNotice("✅ تم التصدير بدقة منخفضة", "success");
+          return;
+        } catch (fallbackErr) {
+          console.error("Fallback export failed:", fallbackErr);
+        }
+      }
+      
+      showNotice("⚠️ تعذر التصدير، جرب لقطة شاشة", "error");
+      
     } finally {
       setIsExporting(false);
     }
@@ -268,14 +404,12 @@ function EditorPageContent() {
       showNotice("يرجى تعبئة العنوان والنص واختيار صورة للخبر", "error");
       return;
     }
-
     if (category === "مقالات" && !author.trim()) {
       showNotice("يرجى إدخال اسم الكاتب عند اختيار قسم المقالات", "error");
       return;
     }
 
     setIsSavingArticle(true);
-
     try {
       const payload: Record<string, any> = {
         title: title.trim(),
@@ -293,15 +427,11 @@ function EditorPageContent() {
           .from("news_posts")
           .update(payload)
           .eq("id", articleId);
-
         if (error) throw error;
-
         showNotice("تم تحديث الخبر بنجاح", "success");
       } else {
         const { error } = await supabase.from("news_posts").insert([payload]);
-
         if (error) throw error;
-
         showNotice("تم حفظ الخبر بنجاح", "success");
       }
     } catch (error: any) {
@@ -313,11 +443,9 @@ function EditorPageContent() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-
     try {
       const res = await fetch("/api/admin-logout", { method: "POST" });
       if (!res.ok) throw new Error();
-
       router.push("/secret-entry");
       router.refresh();
     } catch {
@@ -425,6 +553,7 @@ function EditorPageContent() {
                         src={imageUrl}
                         alt="معاينة"
                         className="h-56 w-full object-cover"
+                        crossOrigin="anonymous"
                       />
                     </div>
                   )}
@@ -537,7 +666,6 @@ function EditorPageContent() {
                           className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
                         />
                       </div>
-
                       <div>
                         <label className="mb-1 block text-xs font-bold text-slate-500">
                           لون إحاطة العنوان
@@ -563,7 +691,6 @@ function EditorPageContent() {
                           className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
                         />
                       </div>
-
                       <div>
                         <div className="flex justify-between text-xs font-bold text-slate-500">
                           <span>سمك الإحاطة</span>
@@ -599,7 +726,6 @@ function EditorPageContent() {
                         className="w-full"
                       />
                     </div>
-
                     <div>
                       <div className="flex justify-between text-xs font-bold text-slate-500">
                         <span>شفافية الخلفية</span>
@@ -615,7 +741,6 @@ function EditorPageContent() {
                         className="w-full"
                       />
                     </div>
-
                     <div>
                       <label className="mb-1 block text-xs font-bold text-slate-500">
                         لون الخلفية
@@ -646,7 +771,6 @@ function EditorPageContent() {
                         className="w-full"
                       />
                     </div>
-
                     <div>
                       <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
                         <span>رفع / خفض النص</span>
@@ -680,10 +804,21 @@ function EditorPageContent() {
                   <button
                     onClick={exportAsImage}
                     disabled={isExporting || isUploadingImage}
-                    className="rounded-2xl px-6 py-3.5 font-extrabold text-white disabled:opacity-60"
+                    className="rounded-2xl px-6 py-3.5 font-extrabold text-white disabled:opacity-60 flex items-center justify-center gap-2"
                     style={{ backgroundColor: GOLD }}
+                    title={isIOS() ? "اضغط للمعاينة ثم المشاركة" : "تصدير البطاقة"}
                   >
-                    {isExporting ? "جاري التصدير..." : "تصدير البطاقة"}
+                    {isExporting ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        جاري التصدير...
+                      </>
+                    ) : (
+                      <>
+                        {(typeof navigator.share !== "undefined" && isIOS()) ? "مشاركة البطاقة" : "تصدير البطاقة"}
+                        {isIOS() && <span className="text-xs opacity-80">📱</span>}
+                      </>
+                    )}
                   </button>
 
                   <button
