@@ -847,15 +847,16 @@ function EditorPageContent() {
                 {exportedImageDataUrl && (
                   <div className="mt-4 rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-4 backdrop-blur-sm">
                     <p className="mb-3 text-center text-sm font-bold text-amber-800">
-                      ✅ تم تجهيز الصورة بنجاح
+                      ✅ تم تجهيز الصورة 
                     </p>
-                    <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner">
-                      <img 
-                        src={exportedImageDataUrl} 
-                        alt="معاينة التصدير" 
-                        className="h-36 w-full object-contain" 
-                      />
-                    </div>
+                   
+<div className="mb-4 overflow-hidden rounded-[4px] border border-slate-200 bg-white shadow-inner">
+  <img 
+    src={exportedImageDataUrl} 
+    alt="معاينة التصدير" 
+    className="h-36 w-full object-contain" 
+  />
+</div>
                     <div className="grid grid-cols-2 gap-3">
                       <button 
                         onClick={savePreparedImage}
@@ -886,20 +887,20 @@ function EditorPageContent() {
               <div className="flex justify-center rounded-3xl bg-slate-200 p-4 md:p-6">
                 <div
                   ref={previewRef}
-                  className="relative h-[711px] w-[400px] overflow-hidden rounded-[36px] bg-slate-950"
-                >
+                  className="relative h-[640px] w-[360px] sm:h-[711px] sm:w-[400px] overflow-hidden rounded-[8px] sm:rounded-[24px] bg-slate-950"
+>
                   {imageUrl ? (
                     <img
-                      src={imageUrl}
-                      crossOrigin="anonymous"
-                      alt="خلفية"
-                      className="absolute left-1/2 top-1/2 h-full w-full object-cover"
-                      style={{
-                        transform: imageTransform,
-                        transformOrigin: "center center",
-                        filter: `brightness(${overlayBrightness}%)`,
-                      }}
-                    />
+  src={imageUrl}
+  crossOrigin="anonymous"
+  alt="خلفية"
+  className="absolute left-1/2 top-1/2 h-full w-full object-cover"
+  style={{
+    transform: imageTransform,
+    transformOrigin: "center center",
+    filter: `brightness(${overlayBrightness}%)`,
+  }}
+/>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-800 text-slate-300">
                       رفع صورة
