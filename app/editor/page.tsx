@@ -459,72 +459,57 @@ const prepareExportImage = async () => {
   }
 
   setIsExporting(true);
-  setGeneratedExportUrl(""); // نستخدم المتغير الجديد
+  setGeneratedExportUrl("");
   setShowExportActions(false);
   showNotice("جاري تجهيز الصورة...", "info");
 
   try {
-    // 1️⃣ انتظار تحميل الخطوط والصور
     if (document.fonts?.ready) await document.fonts.ready;
     await waitForImagesToLoad(previewRef.current);
-    await new Promise(resolve => setTimeout(resolve, 150)); // انتظار بسيط لتحديث الـ CSS
+    await new Promise(resolve => setTimeout(resolve, 150));
 
-    // 2️⃣ تحديد نسبة البكسل حسب الجهاز (لجودة أفضل وتجنب أخطاء الذاكرة)
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-    const pixelRatio = isMobile ? 2 : 3;
+    // 🔹 حساب نسبة التكامل لبلوغ 1080 بكسل عرضاً (سناب شات ستاندرد)
+    const previewWidth = previewRef.current.offsetWidth;
+    const pixelRatio = 1080 / previewWidth; // ≈ 2.7 إذا كان العرض 400
 
-    // 3️⃣ التصوير المباشر من العنصر الأصلي (بدون clone لتجنب مشاكل الـ CSS)
     const dataUrl = await htmlToImage.toPng(previewRef.current, {
-      pixelRatio,
+      pixelRatio,          // يرفع الدقة تلقائياً إلى 1080×1920
       cacheBust: true,
       backgroundColor: "#0f172a",
       skipFonts: false,
-      // نستخدم أبعاد العنصر كما هي لضمان تطابق التصميم
-      width: previewRef.current.offsetWidth,
-      height: previewRef.current.offsetHeight,
       style: {
-        transform: "none", // إلغاء أي تحويلات لضمان دقة القياس
+        transform: "none",
         transformOrigin: "top left",
         margin: "0",
         padding: "0",
+        borderRadius: "0", // إزالة أي حواف دائرية أثناء التصدير
       },
-      // فلتر لاستبعاد أي عناصر لا نريدها في التصدير
       filter: (node: HTMLElement) => {
         if (node.tagName === "IMG") return true;
         return !node.classList?.contains("no-export");
       },
     });
 
-    // 4️⃣ حفظ النتيجة وعرض أزرار التحميل
     setGeneratedExportUrl(dataUrl);
     setShowExportActions(true);
-    showNotice("✅ تم تجهيز البطاقة بنجاح", "success");
+    showNotice("✅ تم تجهيز البطاقة بدقة 1080p", "success");
 
   } catch (error: any) {
-    console.error("Export error (attempt 1):", error);
-
-    // 🔄 محاولة احتياطية بدقة أقل في حال الفشل الأول
+    console.error("Export error:", error);
+    // 🔹 محاولة احتياطية بدقة أقل إذا تعذر التصدير العالي
     try {
       showNotice("جاري المحاولة بدقة متوافقة...", "info");
-      
-      const fallbackDataUrl = await htmlToImage.toPng(previewRef.current, {
-        pixelRatio: 1, // أقل دقة لضمان النجاح
+      const fallbackUrl = await htmlToImage.toPng(previewRef.current, {
+        pixelRatio: 2,
         backgroundColor: "#0f172a",
-        width: previewRef.current?.offsetWidth,
-        height: previewRef.current?.offsetHeight,
         style: { transform: "none" },
-        cacheBust: true,
       });
-
-      setGeneratedExportUrl(fallbackDataUrl);
+      setGeneratedExportUrl(fallbackUrl);
       setShowExportActions(true);
       showNotice("✅ تم التجهيز (دقة متوافقة)", "success");
-      
-    } catch (fallbackErr) {
-      console.error("Export fallback failed:", fallbackErr);
+    } catch {
       showNotice("⚠️ تعذر تجهيز الصورة، جرب تحديث الصفحة", "error");
     }
-    
   } finally {
     setIsExporting(false);
   }
