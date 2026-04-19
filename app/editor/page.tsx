@@ -466,23 +466,31 @@ const prepareExportImage = async () => {
   try {
     if (document.fonts?.ready) await document.fonts.ready;
     await waitForImagesToLoad(previewRef.current);
-    await new Promise(resolve => setTimeout(resolve, 150));
+    await new Promise(resolve => setTimeout(resolve, 200));
 
-    // 🔹 حساب نسبة التكامل لبلوغ 1080 بكسل عرضاً (سناب شات ستاندرد)
-    const previewWidth = previewRef.current.offsetWidth;
-    const pixelRatio = 1080 / previewWidth; // ≈ 2.7 إذا كان العرض 400
-
+    // 🔹 الأبعاد الدقيقة لسناب شات (بدون حسابات تقريبية)
+    const SNAP_WIDTH = 1080;
+    const SNAP_HEIGHT = 1920;
+    
     const dataUrl = await htmlToImage.toPng(previewRef.current, {
-      pixelRatio,          // يرفع الدقة تلقائياً إلى 1080×1920
+      pixelRatio: SNAP_WIDTH / previewRef.current.offsetWidth,
       cacheBust: true,
       backgroundColor: "#0f172a",
       skipFonts: false,
+      // 🔹 تحديد الأبعاد صراحةً (هذا هو الحل الجذري)
+      width: SNAP_WIDTH,
+      height: SNAP_HEIGHT,
+      canvasWidth: SNAP_WIDTH,
+      canvasHeight: SNAP_HEIGHT,
       style: {
+        width: `${SNAP_WIDTH}px`,
+        height: `${SNAP_HEIGHT}px`,
         transform: "none",
         transformOrigin: "top left",
         margin: "0",
         padding: "0",
-        borderRadius: "0", // إزالة أي حواف دائرية أثناء التصدير
+        borderRadius: "0",
+        objectFit: "cover",
       },
       filter: (node: HTMLElement) => {
         if (node.tagName === "IMG") return true;
@@ -492,23 +500,24 @@ const prepareExportImage = async () => {
 
     setGeneratedExportUrl(dataUrl);
     setShowExportActions(true);
-    showNotice("✅ تم تجهيز البطاقة بدقة 1080p", "success");
+    showNotice("✅ تم التجهيز بدقة 1080×1920", "success");
 
   } catch (error: any) {
     console.error("Export error:", error);
-    // 🔹 محاولة احتياطية بدقة أقل إذا تعذر التصدير العالي
     try {
-      showNotice("جاري المحاولة بدقة متوافقة...", "info");
+      showNotice("جاري المحاولة بدقة أقل...", "info");
       const fallbackUrl = await htmlToImage.toPng(previewRef.current, {
         pixelRatio: 2,
         backgroundColor: "#0f172a",
-        style: { transform: "none" },
+        width: 1080,
+        height: 1920,
+        style: { transform: "none", borderRadius: "0" },
       });
       setGeneratedExportUrl(fallbackUrl);
       setShowExportActions(true);
-      showNotice("✅ تم التجهيز (دقة متوافقة)", "success");
+      showNotice("✅ تم التجهيز", "success");
     } catch {
-      showNotice("⚠️ تعذر تجهيز الصورة، جرب تحديث الصفحة", "error");
+      showNotice("⚠️ تعذر التجهيز", "error");
     }
   } finally {
     setIsExporting(false);
