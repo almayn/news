@@ -1047,17 +1047,27 @@ const deleteArticle = async () => {
                   />
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-slate-700">
-                    نص الخبر
-                  </label>
-                  <textarea
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    rows={8}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-8 outline-none focus:bg-white transition"
-                  />
-                </div>
+               <div>
+  <label className="mb-2 block text-sm font-bold text-slate-700">نص الخبر</label>
+  
+  {/* 🔹 زر الفتح/الإغلاق (يظهر فقط على الجوال) */}
+  <button
+    onClick={() => setIsTextExpanded(!isTextExpanded)}
+    className="mb-2 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-bold text-slate-500 hover:bg-slate-100 transition md:hidden"
+  >
+    {isTextExpanded ? "إخفاء النص ▲" : "📝 اضغط لإظهار مربع الكتابة ▼"}
+  </button>
+
+  {/* 🔹 مربع النص (يظهر دائماً على الكمبيوتر، ويتحكم به الزر على الجوال) */}
+  <textarea
+    value={body}
+    onChange={(e) => setBody(e.target.value)}
+    rows={8}
+    className={`w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-8 outline-none focus:bg-white transition-all duration-300 ${
+      isTextExpanded ? "block" : "hidden md:block"
+    }`}
+  />
+</div>
 
                 <div className="space-y-6 rounded-2xl border-2 border-amber-200 bg-amber-50/30 p-5">
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
