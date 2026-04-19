@@ -464,58 +464,71 @@ const prepareExportImage = async () => {
   showNotice("جاري تجهيز الصورة...", "info");
 
   try {
+    // انتظار الخطوط والصور
     if (document.fonts?.ready) await document.fonts.ready;
     await waitForImagesToLoad(previewRef.current);
-    await new Promise(resolve => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 180));
 
-    // ✅ الأبعاد الثابتة الصحيحة: 1080 × 1920 (9:16 عمودي)
-    const EXPORT_WIDTH = 1080;
-    const EXPORT_HEIGHT = 1920;
-    const pixelRatio = 1; // لأننا حددنا الأبعاد بدقة
+    const node = previewRef.current as HTMLElement;
 
-    const dataUrl = await htmlToImage.toPng(previewRef.current, {
-      pixelRatio,
+    const dataUrl = await htmlToImage.toPng(node, {
+      pixelRatio: 1, // مهم مع canvas كبير
       cacheBust: true,
-      backgroundColor: "#0f172a",
       skipFonts: false,
-      // ✅ فرض الأبعاد الصحيحة
-      width: EXPORT_WIDTH,
-      height: EXPORT_HEIGHT,
-      canvasWidth: EXPORT_WIDTH,
-      canvasHeight: EXPORT_HEIGHT,
+      backgroundColor: "#0f172a",
+
+      // 📱 المقاس النهائي (سناب فل)
+      canvasWidth: 2160,
+      canvasHeight: 3840,
+
+      // استخدام أبعاد العنصر الفعلية
+      width: node.offsetWidth,
+      height: node.offsetHeight,
+
       style: {
-        width: `${EXPORT_WIDTH}px`,
-        height: `${EXPORT_HEIGHT}px`,
-        transform: "none",
-        transformOrigin: "top left",
         margin: "0",
         padding: "0",
+        width: `${node.offsetWidth}px`,
+        height: `${node.offsetHeight}px`,
+        transform: "none",
+        transformOrigin: "top left",
+        overflow: "hidden",
         borderRadius: "4px",
-        objectFit: "cover",
       },
+
       filter: (node: HTMLElement) => {
-        if (node.tagName === "IMG") return true;
-        return !node.classList?.contains("no-export");
+        if (node.classList?.contains("no-export")) return false;
+        return true;
       },
     });
 
     setGeneratedExportUrl(dataUrl);
     setShowExportActions(true);
-    showNotice("✅ تم التجهيز بدقة 1080×1920", "success");
+    showNotice("✅ تم تجهيز البطاقة بجودة عالية", "success");
 
   } catch (error: any) {
-    console.error("Export error:", error);
-    
+    console.error("Export error (attempt 1):", error);
+
+    // 🔄 fallback في حال فشل الدقة العالية
     try {
       showNotice("جاري المحاولة بدقة أقل...", "info");
-      
-      const fallbackDataUrl = await htmlToImage.toPng(previewRef.current, {
-        pixelRatio: 2,
+
+      const node = previewRef.current as HTMLElement;
+
+      const fallbackDataUrl = await htmlToImage.toPng(node, {
+        pixelRatio: 1,
+        cacheBust: true,
         backgroundColor: "#0f172a",
-        width: 560,
-        height: 996, // 560 × 16/9
-        style: { 
+        canvasWidth: 1080,
+        canvasHeight: 1920,
+        width: node.offsetWidth,
+        height: node.offsetHeight,
+        style: {
+          margin: "0",
+          padding: "0",
           transform: "none",
+          transformOrigin: "top left",
+          overflow: "hidden",
           borderRadius: "4px",
         },
       });
@@ -523,12 +536,12 @@ const prepareExportImage = async () => {
       setGeneratedExportUrl(fallbackDataUrl);
       setShowExportActions(true);
       showNotice("✅ تم التجهيز (دقة متوافقة)", "success");
-      
+
     } catch (fallbackErr) {
       console.error("Export fallback failed:", fallbackErr);
-      showNotice("⚠️ تعذر تجهيز الصورة", "error");
+      showNotice("⚠️ تعذر تجهيز الصورة، جرب تحديث الصفحة", "error");
     }
-    
+
   } finally {
     setIsExporting(false);
   }
