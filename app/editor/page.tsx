@@ -24,6 +24,7 @@ interface Article {
   sub_title?: string | null;
   body: string;
   image_url: string;
+  image_name?: string | null;
   created_at?: string;
   category: string;
   source?: string | null;
@@ -37,7 +38,7 @@ function EditorPageContent() {
 
   const articleId = searchParams.get("id");
   const isEditMode = !!articleId;
-
+const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [title, setTitle] = useState("");
   const [subTitle, setSubTitle] = useState("");
   const [body, setBody] = useState("");
@@ -47,6 +48,15 @@ function EditorPageContent() {
   const [imageUrl, setImageUrl] = useState("");
   const [isBreaking, setIsBreaking] = useState(false);
   const [isPoem, setIsPoem] = useState(false);
+  const [showTwitterPanel, setShowTwitterPanel] = useState(false);
+  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [newTagInput, setNewTagInput] = useState("");
+   // 🔹 مكتبة الصور المؤرشفة
+  const [librarySearch, setLibrarySearch] = useState("");
+  const [libraryResults, setLibraryResults] = useState<any[]>([]);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [customImageName, setCustomImageName] = useState("");
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSavingArticle, setIsSavingArticle] = useState(false);
@@ -59,7 +69,6 @@ function EditorPageContent() {
   const [showExportActions, setShowExportActions] = useState(false);
   const [copiedXText, setCopiedXText] = useState(false);
   const [isPreparingCleanExport, setIsPreparingCleanExport] = useState(false);
-
   const [notice, setNotice] = useState<{ type: NoticeType; text: string } | null>(
     null
   );
@@ -84,6 +93,33 @@ function EditorPageContent() {
 
   const previewRef = useRef<HTMLDivElement>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+
+
+  const handleLibrarySearch = async (query: string) => {
+    setLibrarySearch(query);
+
+    const cleanQuery = query.trim();
+
+    if (cleanQuery.length < 1) {
+      setLibraryResults([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("media_library")
+      .select("id, name, url, created_at")
+      .ilike("name", `%${cleanQuery}%`)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Library search error:", error);
+      showNotice("تعذر البحث في مكتبة الصور", "error");
+      return;
+    }
+
+    setLibraryResults(data || []);
+  };
 
   const plainBodyPreview = useMemo(() => {
     return body.replace(/<[^>]*>?/gm, "").trim();
@@ -245,6 +281,12 @@ function EditorPageContent() {
     setIsBreaking(false);
     setIsPoem(false);
 
+    // إعادة تعيين مكتبة الصور
+    setCustomImageName("");
+    setLibrarySearch("");
+    setLibraryResults([]);
+    setShowLibrary(false);
+
     setImageScale(1);
     setImagePositionY(50);
     setTextOffsetY(0);
@@ -273,7 +315,17 @@ function EditorPageContent() {
 
     showNotice("تم التفريغ وفتح خبر جديد", "success");
   };
+  // 💾 استرجاع وحفظ الهاشتاقات تلقائياً (ضعها بعد الـ useState أو بجانب useEffect الأخرى)
+  useEffect(() => {
+    const saved = localStorage.getItem("almas_x_hashtags");
+    if (saved) {
+      try { setHashtags(JSON.parse(saved)); } catch (e) { console.error(e); }
+    }
+  }, []);
 
+  useEffect(() => {
+    localStorage.setItem("almas_x_hashtags", JSON.stringify(hashtags));
+  }, [hashtags]);
   useEffect(() => {
     const fetchArticleForEdit = async () => {
       if (!articleId) return;
@@ -294,21 +346,23 @@ function EditorPageContent() {
           return;
         }
 
-        const item: Article = {
+              const item: Article = {
           ...data,
           category: data.category || "عام",
           body: data.body || data.content || "",
           source: data.source || "أخبار الماس",
           author: data.author || "",
+          image_name: data.image_name || "",
         };
 
-        setTitle(item.title || "");
+               setTitle(item.title || "");
         setSubTitle(item.sub_title || "");
         setBody(item.body || "");
         setCategory(item.category || "عام");
         setSource(item.source || "أخبار الماس");
         setAuthor(item.author || "");
         setImageUrl(item.image_url || "");
+                setCustomImageName(item.image_name || "");
         setIsBreaking(false);
         setIsPoem(!!item.is_poem);
       } catch (error) {
@@ -322,120 +376,159 @@ function EditorPageContent() {
     fetchArticleForEdit();
   }, [articleId]);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    setIsUploadingImage(true);
+  try {
+    setSelectedImageFile(file);
 
-    try {
-      const localPreview = await fileToDataUrl(file);
-      setImageUrl(localPreview);
+    const localPreview = await fileToDataUrl(file);
+    setImageUrl(localPreview);
 
-      setGeneratedExportUrl("");
-      setGeneratedExportName("");
-      setShowExportActions(false);
-
-      showNotice("تم تجهيز الصورة للمعاينة", "success");
-
-      const formData = new FormData();
-      formData.append("image", file);
-
-      const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
-
-      if (!apiKey) {
-        showNotice("مفتاح ImgBB غير موجود، لكن المعاينة تعمل محليًا", "info");
-        return;
-      }
-
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (data?.success && data?.data?.url) {
-        setImageUrl(data.data.url);
-        showNotice("تم رفع الصورة بنجاح", "success");
-      } else {
-        showNotice("فشل رفع الصورة، لكن المعاينة المحلية جاهزة", "info");
-      }
-    } catch (error) {
-      console.error(error);
-      showNotice("حدث خطأ أثناء تجهيز الصورة", "error");
-    } finally {
-      setIsUploadingImage(false);
-    }
-  };
-
-  const prepareExportImage = async () => {
-    if (!previewRef.current) return;
-
-    if (!title.trim() || !imageUrl.trim()) {
-      showNotice("أدخل عنوان الخبر وارفع صورة قبل التصدير", "error");
-      return;
-    }
-
-    setIsExporting(true);
-    setShowExportActions(false);
     setGeneratedExportUrl("");
     setGeneratedExportName("");
+    setShowExportActions(false);
 
-    let exportNode: HTMLDivElement | null = null;
+    showNotice("تم تجهيز الصورة للمعاينة، وسيتم رفعها عند حفظ الخبر", "success");
+  } catch (error) {
+    console.error(error);
+    showNotice("حدث خطأ أثناء تجهيز الصورة", "error");
+  }
+};
 
+const uploadImageAndArchive = async () => {
+  if (!selectedImageFile) {
+    return {
+      uploadedUrl: imageUrl.trim(),
+      imageName: customImageName.trim() || null,
+    };
+  }
+
+  const formData = new FormData();
+  formData.append("image", selectedImageFile);
+
+  const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("مفتاح ImgBB غير موجود");
+  }
+
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json();
+
+  if (!data?.success || !data?.data?.url) {
+    throw new Error("فشل رفع الصورة");
+  }
+
+  const uploadedUrl = data.data.url;
+  const finalImageName =
+    customImageName.trim() || selectedImageFile.name.replace(/\.[^/.]+$/, "");
+
+  const { error: insertError } = await supabase
+    .from("media_library")
+    .insert([
+      {
+        name: finalImageName,
+        url: uploadedUrl,
+      },
+    ]);
+
+  if (insertError) {
+    console.error("Archive insert error:", insertError);
+    throw new Error(insertError.message || "فشل حفظ الصورة في المكتبة");
+  }
+
+  return {
+    uploadedUrl,
+    imageName: finalImageName,
+  };
+};
+
+  // 🔹 دالة تجهيز الصورة للتصدير (نسخة مبسطة وموثوقة)
+const prepareExportImage = async () => {
+  if (!previewRef.current) return;
+
+  if (!title.trim() || !imageUrl.trim()) {
+    showNotice("أدخل عنوان الخبر وارفع صورة قبل التجهيز", "error");
+    return;
+  }
+
+  setIsExporting(true);
+  setGeneratedExportUrl(""); // نستخدم المتغير الجديد
+  setShowExportActions(false);
+  showNotice("جاري تجهيز الصورة...", "info");
+
+  try {
+    // 1️⃣ انتظار تحميل الخطوط والصور
+    if (document.fonts?.ready) await document.fonts.ready;
+    await waitForImagesToLoad(previewRef.current);
+    await new Promise(resolve => setTimeout(resolve, 150)); // انتظار بسيط لتحديث الـ CSS
+
+    // 2️⃣ تحديد نسبة البكسل حسب الجهاز (لجودة أفضل وتجنب أخطاء الذاكرة)
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const pixelRatio = isMobile ? 2 : 3;
+
+    // 3️⃣ التصوير المباشر من العنصر الأصلي (بدون clone لتجنب مشاكل الـ CSS)
+    const dataUrl = await htmlToImage.toPng(previewRef.current, {
+      pixelRatio,
+      cacheBust: true,
+      backgroundColor: "#0f172a",
+      skipFonts: false,
+      // نستخدم أبعاد العنصر كما هي لضمان تطابق التصميم
+      width: previewRef.current.offsetWidth,
+      height: previewRef.current.offsetHeight,
+      style: {
+        transform: "none", // إلغاء أي تحويلات لضمان دقة القياس
+        transformOrigin: "top left",
+        margin: "0",
+        padding: "0",
+      },
+      // فلتر لاستبعاد أي عناصر لا نريدها في التصدير
+      filter: (node: HTMLElement) => {
+        if (node.tagName === "IMG") return true;
+        return !node.classList?.contains("no-export");
+      },
+    });
+
+    // 4️⃣ حفظ النتيجة وعرض أزرار التحميل
+    setGeneratedExportUrl(dataUrl);
+    setShowExportActions(true);
+    showNotice("✅ تم تجهيز البطاقة بنجاح", "success");
+
+  } catch (error: any) {
+    console.error("Export error (attempt 1):", error);
+
+    // 🔄 محاولة احتياطية بدقة أقل في حال الفشل الأول
     try {
-      setIsPreparingCleanExport(true);
-
-      await new Promise((resolve) => setTimeout(resolve, 80));
-      if (document.fonts?.ready) {
-        await document.fonts.ready;
-      }
-
-      await waitForResources(previewRef.current);
-      await waitForImagesToLoad(previewRef.current);
-
-      exportNode = await buildExportNode();
-
-      const dataUrl = await htmlToImage.toPng(exportNode, {
-        pixelRatio: 1,
-        cacheBust: true,
+      showNotice("جاري المحاولة بدقة متوافقة...", "info");
+      
+      const fallbackDataUrl = await htmlToImage.toPng(previewRef.current, {
+        pixelRatio: 1, // أقل دقة لضمان النجاح
         backgroundColor: "#0f172a",
-        skipFonts: false,
-        width: EXPORT_WIDTH,
-        height: EXPORT_HEIGHT,
-        canvasWidth: EXPORT_WIDTH,
-        canvasHeight: EXPORT_HEIGHT,
-        style: {
-          width: `${EXPORT_WIDTH}px`,
-          height: `${EXPORT_HEIGHT}px`,
-          transform: "none",
-          direction: "rtl",
-          borderRadius: "0px",
-        },
-        filter: (node: HTMLElement) => {
-          if (node.tagName === "IMG") return true;
-          return !node.classList?.contains("no-export");
-        },
+        width: previewRef.current?.offsetWidth,
+        height: previewRef.current?.offsetHeight,
+        style: { transform: "none" },
+        cacheBust: true,
       });
 
-      const fileName = `almas-news-${Date.now()}.png`;
-
-      setGeneratedExportUrl(dataUrl);
-      setGeneratedExportName(fileName);
+      setGeneratedExportUrl(fallbackDataUrl);
       setShowExportActions(true);
-
-      showNotice("تم تجهيز البطاقة. الآن احفظها أو شاركها", "success");
-    } catch (error: any) {
-      console.error("Export error:", error);
-      showNotice("تعذر تجهيز الصورة", "error");
-    } finally {
-      cleanupExportNode(exportNode);
-      setIsPreparingCleanExport(false);
-      setIsExporting(false);
+      showNotice("✅ تم التجهيز (دقة متوافقة)", "success");
+      
+    } catch (fallbackErr) {
+      console.error("Export fallback failed:", fallbackErr);
+      showNotice("⚠️ تعذر تجهيز الصورة، جرب تحديث الصفحة", "error");
     }
-  };
-
+    
+  } finally {
+    setIsExporting(false);
+  }
+};
   const downloadPreparedImage = () => {
     if (!generatedExportUrl) return;
 
@@ -479,69 +572,136 @@ function EditorPageContent() {
       showNotice("تعذر فتح المشاركة، استخدم الحفظ", "error");
     }
   };
+const deleteArticle = async () => {
+  const confirmed = window.confirm(
+    "⚠️ هل أنت متأكد من حذف هذا الخبر؟\nسيتم حذف الصورة من المكتبة إذا لم تكن مستخدمة في أخبار أخرى."
+  );
+  if (!confirmed) return;
 
-  const saveArticle = async () => {
-    if (!title.trim() || !body.trim() || !imageUrl.trim()) {
-      showNotice("يرجى تعبئة العنوان والنص واختيار صورة للخبر", "error");
-      return;
-    }
+  if (!articleId) {
+    showNotice("لا يوجد خبر لحذفه", "error");
+    return;
+  }
 
-    if (category === "مقالات" && !author.trim()) {
-      showNotice("يرجى إدخال اسم الكاتب عند اختيار قسم المقالات", "error");
-      return;
-    }
+  setIsSavingArticle(true);
 
-    setIsSavingArticle(true);
+  try {
+    // 🔹 1️⃣ جلب بيانات الخبر
+    const { data: articleData, error: fetchError } = await supabase
+      .from("news_posts")
+      .select("id, image_name, image_url")
+      .eq("id", articleId)
+      .single();
 
-    try {
-      const payload: Record<string, any> = {
-        title: title.trim(),
-        sub_title: subTitle.trim() || null,
-        body: body.trim(),
-        category,
-        source: source.trim() || "أخبار الماس",
-        author: category === "مقالات" ? author.trim() : null,
-        image_url: imageUrl.trim(),
-        is_poem: isPoem,
-      };
+    if (fetchError) throw fetchError;
+    if (!articleData) throw new Error("الخبر غير موجود");
 
-      if (isEditMode && articleId) {
-        const { error } = await supabase
-          .from("news_posts")
-          .update(payload)
-          .eq("id", articleId);
+    // 🔹 2️⃣ حذف الصورة من المكتبة (بأمان)
+    if (articleData.image_name) {
+      // التحقق: هل توجد أخبار أخرى تستخدم نفس الصورة؟
+      const { data: usedElsewhere, error: checkError } = await supabase
+        .from("news_posts")
+        .select("id")
+        .eq("image_name", articleData.image_name)
+        .neq("id", articleId);
 
-        if (error) throw error;
+      if (checkError) console.warn("فشل التحقق من استخدام الصورة:", checkError.message);
 
-        showNotice("تم تحديث الخبر بنجاح", "success");
+      // إذا لم تُستخدم في أي خبر آخر → احذفها من المكتبة
+      if (!usedElsewhere || usedElsewhere.length === 0) {
+        const { error: deleteImgError } = await supabase
+          .from("media_library")
+          .delete()
+          .eq("name", articleData.image_name);
 
-        setTimeout(() => {
-          openShareToX(title.trim(), articleId);
-        }, 350);
-      } else {
-        const { data, error } = await supabase
-          .from("news_posts")
-          .insert([payload])
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        showNotice("تم حفظ الخبر بنجاح", "success");
-
-        if (data?.id) {
-          setTimeout(() => {
-            openShareToX(title.trim(), data.id);
-          }, 350);
+        if (deleteImgError) {
+          console.warn("فشل حذف الصورة من المكتبة:", deleteImgError.message);
         }
       }
-    } catch (error: any) {
-      console.error(error);
-      showNotice(error.message || "حدث خطأ أثناء الحفظ", "error");
-    } finally {
-      setIsSavingArticle(false);
     }
-  };
+
+    // 🔹 3️⃣ حذف الخبر نفسه
+    const { error: deleteArticleError } = await supabase
+      .from("news_posts")
+      .delete()
+      .eq("id", articleId);
+
+    if (deleteArticleError) throw deleteArticleError;
+
+    showNotice("✅ تم حذف الخبر وتنظيف المكتبة بنجاح", "success");
+
+    // 🔹 4️⃣ البقاء في المحرر وتفريغ الحقول
+    setTimeout(() => {
+      router.replace("/editor");
+      router.refresh();
+      resetForm();
+    }, 1000);
+
+  } catch (error: any) {
+    console.error("Delete error:", error);
+    showNotice(error.message || "حدث خطأ أثناء الحذف", "error");
+  } finally {
+    setIsSavingArticle(false);
+  }
+};
+ const saveArticle = async () => {
+  if (!title.trim() || !body.trim() || !imageUrl.trim()) {
+    showNotice("يرجى تعبئة العنوان والنص واختيار صورة للخبر", "error");
+    return;
+  }
+
+  if (category === "مقالات" && !author.trim()) {
+    showNotice("يرجى إدخال اسم الكاتب عند اختيار قسم المقالات", "error");
+    return;
+  }
+
+  setIsSavingArticle(true);
+
+  try {
+    // 🔹 الخطوة 1: رفع الصورة للأرشيف إذا كانت ملفاً جديداً
+    const uploadResult = await uploadImageAndArchive();
+    
+    // 🔹 الخطوة 2: استخدام الروابط المرجعة من عملية الرفع
+    const finalImageUrl = uploadResult.uploadedUrl;
+    const finalImageName = uploadResult.imageName;
+
+    const payload: Record<string, any> = {
+      title: title.trim(),
+      sub_title: subTitle.trim() || null,
+      body: body.trim(),
+      category,
+      source: source.trim() || "أخبار الماس",
+      author: category === "مقالات" ? author.trim() : null,
+      image_url: finalImageUrl, // ✅ الرابط النهائي من الرفع
+      image_name: finalImageName, // ✅ الاسم النهائي للأرشفة
+      is_poem: isPoem,
+    };
+
+    if (isEditMode && articleId) {
+      const { error } = await supabase
+        .from("news_posts")
+        .update(payload)
+        .eq("id", articleId);
+
+      if (error) throw error;
+      showNotice("تم تحديث الخبر بنجاح", "success");
+    } else {
+      const { data, error } = await supabase
+        .from("news_posts")
+        .insert([payload])
+        .select()
+        .single();
+
+      if (error) throw error;
+      showNotice("تم حفظ الخبر بنجاح", "success");
+    }
+  } catch (error: any) {
+    console.error(error);
+    showNotice(error.message || "حدث خطأ أثناء الحفظ", "error");
+  } finally {
+    setIsSavingArticle(false);
+  }
+};
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -557,6 +717,44 @@ function EditorPageContent() {
     } finally {
       setIsLoggingOut(false);
     }
+  };
+
+ // 🔹 الدوال المساعدة (ضعها بجانب الدوال الأخرى مثل saveArticle)
+  const addHashtag = () => {
+    const cleanTag = newTagInput.trim().replace(/^#/, "");
+    if (cleanTag && !hashtags.includes(cleanTag) && hashtags.length < 10) {
+      setHashtags(prev => [...prev, cleanTag]);
+      setNewTagInput("");
+    }
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addHashtag();
+    }
+  };
+
+  const removeHashtag = (tag: string) => {
+    setHashtags(prev => prev.filter(t => t !== tag));
+  };
+
+  const buildTweetText = () => {
+    if (!title.trim()) return "";
+    const words = title.trim().split(/\s+/);
+    words[0] = `#${words[0]}`; // إضافة # لأول كلمة تلقائياً
+    const formattedTitle = words.join(" ");
+    const snippet = truncateText((subTitle || plainBodyPreview).trim(), 120);
+    const tags = hashtags.map(t => `#${t}`).join(" ");
+    const url = articleId ? `${window.location.origin}/news/${articleId}` : "https://almasyn.com";
+    let fullText = [formattedTitle, snippet, tags, url].filter(Boolean).join("\n\n");
+    return fullText.length > 280 ? fullText.slice(0, 277) + "..." : fullText;
+  };
+
+  const publishToX = () => {
+    const text = buildTweetText();
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    showNotice("✅ تم فتح نافذة النشر", "success");
   };
 
   const imageTransform = `translate(-50%, -${imagePositionY}%) scale(${imageScale})`;
@@ -640,31 +838,116 @@ function EditorPageContent() {
           <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1.1fr_0.9fr]">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
               <div className="space-y-5">
+                
+                      {/* 🖼️ قسم مكتبة الصور والأرشفة */}
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <label className="mb-2 block text-sm font-extrabold text-slate-800">
-                    صورة الخبر
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={isUploadingImage}
-                    className="block w-full text-sm text-slate-500 file:ml-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-slate-900 file:px-5 file:py-2.5 file:text-sm file:font-bold file:text-white"
-                  />
+                  <div className="mb-4 flex items-center justify-between">
+                    <label className="text-sm font-extrabold text-slate-800">
+                      صورة الخبر والأرشفة
+                    </label>
+
+                    <div className="flex gap-1 rounded-lg bg-slate-200 p-1">
+                      <button
+                        onClick={() => setShowLibrary(false)}
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition ${
+                          !showLibrary
+                            ? "bg-white shadow-sm text-slate-900"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        رفع جديد
+                      </button>
+
+                      <button
+                        onClick={() => setShowLibrary(true)}
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition ${
+                          showLibrary
+                            ? "bg-white shadow-sm text-slate-900"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        📚 المكتبة
+                      </button>
+                    </div>
+                  </div>
+
+                  {!showLibrary ? (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="اسم الصورة للأرشفة (مثال: الهلال، وزير، شعار، مناسبة...)"
+                        value={customImageName}
+                        onChange={(e) => setCustomImageName(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+                      />
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={isUploadingImage}
+                        className="block w-full text-sm text-slate-500 file:ml-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-slate-900 file:px-5 file:py-2.5 file:text-sm file:font-bold file:text-white hover:file:bg-slate-800 transition"
+                      />
+
+                      {isUploadingImage && (
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></div>
+                          جاري رفع الصورة وحفظها في الأرشيف...
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="🔍 ابحث في أرشيف الماس باسم الصورة..."
+                        value={librarySearch}
+                        onChange={(e) => handleLibrarySearch(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
+                      />
+
+                      <div className="custom-scrollbar grid max-h-[160px] grid-cols-3 gap-2 overflow-y-auto p-1">
+                        {libraryResults.length > 0 ? (
+                          libraryResults.map((item) => (
+                            <div
+                              key={item.id}
+                              onClick={() => {
+                                setImageUrl(item.url);
+                                setCustomImageName(item.name || "");
+                                showNotice(`تم اختيار: ${item.name}`, "info");
+                                setShowLibrary(false);
+                              }}
+                              className="group relative h-20 cursor-pointer overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-amber-500 hover:shadow-lg"
+                            >
+                              <img
+                                src={item.url}
+                                alt={item.name}
+                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                              />
+
+                              <div className="absolute inset-x-0 bottom-0 truncate bg-black/70 p-1 text-[9px] font-bold text-white">
+                                {item.name}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="col-span-3 py-4 text-center text-xs text-slate-400">
+                            {librarySearch.trim().length >= 1
+                              ? "لا توجد نتائج"
+                              : "اكتب اسم الصورة للبحث..."}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {imageUrl && (
-                    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+                    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
                       <img
                         src={imageUrl}
                         alt="معاينة"
                         className="h-56 w-full object-cover"
                       />
-                    </div>
-                  )}
-
-                  {isUploadingImage && (
-                    <div className="mt-3 text-sm font-bold text-slate-500">
-                      جاري رفع الصورة...
                     </div>
                   )}
                 </div>
@@ -677,7 +960,7 @@ function EditorPageContent() {
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none focus:bg-white"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none focus:bg-white transition"
                     >
                       {CATEGORY_OPTIONS.map((item) => (
                         <option key={item} value={item}>
@@ -695,7 +978,7 @@ function EditorPageContent() {
                       type="text"
                       value={source}
                       onChange={(e) => setSource(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none focus:bg-white"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none focus:bg-white transition"
                     />
                   </div>
                 </div>
@@ -709,13 +992,13 @@ function EditorPageContent() {
                       type="text"
                       value={author}
                       onChange={(e) => setAuthor(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none focus:bg-white"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none focus:bg-white transition"
                     />
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100 transition">
                     <span className="text-sm font-extrabold text-slate-800">
                       شارة عاجل
                     </span>
@@ -727,7 +1010,7 @@ function EditorPageContent() {
                     />
                   </label>
 
-                  <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:bg-slate-100 transition">
                     <span className="text-sm font-extrabold text-slate-800">
                       هذا النص قصيدة
                     </span>
@@ -748,7 +1031,7 @@ function EditorPageContent() {
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-lg font-black outline-none focus:bg-white"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-lg font-black outline-none focus:bg-white transition"
                   />
                 </div>
 
@@ -760,7 +1043,7 @@ function EditorPageContent() {
                     type="text"
                     value={subTitle}
                     onChange={(e) => setSubTitle(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none focus:bg-white"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none focus:bg-white transition"
                   />
                 </div>
 
@@ -772,7 +1055,7 @@ function EditorPageContent() {
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     rows={8}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-8 outline-none focus:bg-white"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-8 outline-none focus:bg-white transition"
                   />
                 </div>
 
@@ -831,7 +1114,7 @@ function EditorPageContent() {
                           onChange={(e) =>
                             setTitleStrokeWidth(Number(e.target.value))
                           }
-                          className="w-full"
+                          className="w-full accent-slate-900"
                         />
                       </div>
                     </div>
@@ -849,7 +1132,7 @@ function EditorPageContent() {
                         max="50"
                         value={blurAmount}
                         onChange={(e) => setBlurAmount(Number(e.target.value))}
-                        className="w-full"
+                        className="w-full accent-slate-900"
                       />
                     </div>
 
@@ -865,7 +1148,7 @@ function EditorPageContent() {
                         step="0.05"
                         value={blurOpacity}
                         onChange={(e) => setBlurOpacity(Number(e.target.value))}
-                        className="w-full"
+                        className="w-full accent-slate-900"
                       />
                     </div>
 
@@ -896,7 +1179,7 @@ function EditorPageContent() {
                         max="65"
                         value={imagePositionY}
                         onChange={(e) => setImagePositionY(Number(e.target.value))}
-                        className="w-full"
+                        className="w-full accent-slate-900"
                       />
                     </div>
 
@@ -911,93 +1194,153 @@ function EditorPageContent() {
                         max="150"
                         value={textOffsetY}
                         onChange={(e) => setTextOffsetY(Number(e.target.value))}
-                        className="w-full"
+                        className="w-full accent-slate-900"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                            {/* 🔹 شبكة الأزرار الرئيسية */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+                {/* 1. زر الحفظ */}
+                <button
+                  onClick={saveArticle}
+                  disabled={isSavingArticle}
+className="rounded-2xl bg-indigo-600 px-6 py-3.5 font-extrabold text-white hover:bg-indigo-700 disabled:opacity-60 transition"                >
+                  {isSavingArticle ? "جاري الحفظ..." : isEditMode ? "تحديث " : "حفظ الخبر"}
+                </button>
+
+                {/* 2. زر الحذف (يظهر فقط في وضع التعديل) */}
+                {isEditMode && (
                   <button
-                    onClick={saveArticle}
+                    onClick={deleteArticle}
                     disabled={isSavingArticle}
-                    className="rounded-2xl bg-slate-900 px-6 py-3.5 font-extrabold text-white hover:bg-slate-800 disabled:opacity-60"
+                    className="rounded-2xl bg-rose-700 px-6 py-3.5 font-extrabold text-white hover:bg-rose-800 disabled:opacity-60 transition"
                   >
-                    {isSavingArticle
-                      ? "جاري الحفظ..."
-                      : isEditMode
-                      ? "تحديث الخبر ثم فتح X"
-                      : "حفظ الخبر ثم فتح X"}
+                     حذف
                   </button>
+                )}
 
-                  <button
-                    onClick={() => {
-                      if (!title.trim()) {
-                        showNotice("أضف عنوان الخبر أولًا", "error");
-                        return;
-                      }
+                {/* 3. زر تجهيز/تصدير الصورة */}
+                <button
+                  onClick={prepareExportImage}
+                  disabled={isExporting}
+                  className="rounded-2xl bg-amber-500 px-6 py-3.5 font-extrabold text-white hover:bg-amber-600 disabled:opacity-60 transition"
+                >
+                  {isExporting ? "..." : " تصدير"}
+                </button>
 
-                      const targetId = isEditMode && articleId ? articleId : "preview";
-                      openShareToX(title.trim(), targetId);
-                    }}
-                    className="rounded-2xl bg-black px-6 py-3.5 font-extrabold text-white hover:opacity-90"
-                  >
-                    مشاركة إلى X
-                  </button>
+                {/* 4. زر المشاركة إلى X */}
+               <button
+  onClick={() => setShowTwitterPanel(!showTwitterPanel)}
+  className="rounded-2xl bg-black px-6 py-3.5 font-extrabold text-white hover:opacity-90 transition flex items-center justify-center gap-2"
+>
+   {showTwitterPanel ? "إخفاء " : "نشر  X"}
+</button>
 
-                  <button
-                    onClick={() => {
-                      if (!title.trim()) {
-                        showNotice("أضف عنوان الخبر أولًا", "error");
-                        return;
-                      }
-
-                      const targetId = isEditMode && articleId ? articleId : "preview";
-                      copyXText(title.trim(), targetId);
-                    }}
-                    className="rounded-2xl bg-sky-600 px-6 py-3.5 font-extrabold text-white hover:bg-sky-700"
-                  >
-                    {copiedXText ? "تم النسخ" : "نسخ نص X"}
-                  </button>
-
-                  <button
-                    onClick={resetForm}
-                    className="rounded-2xl bg-slate-200 px-6 py-3.5 font-extrabold text-slate-800 hover:bg-slate-300"
-                  >
-                    خبر جديد / تفريغ
-                  </button>
-                </div>
-
-                {showExportActions && generatedExportUrl && (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="mb-3 text-sm font-extrabold text-slate-700">
-                      البطاقة جاهزة
-                    </div>
-
-                    <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner">
-                      <img
-                        src={generatedExportUrl}
-                        alt="معاينة التصدير"
-                        className="h-36 w-full object-contain"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={downloadPreparedImage}
-                        className="rounded-xl bg-slate-900 px-4 py-2.5 font-bold text-white hover:bg-slate-800"
-                      >
-                        📥 حفظ الصورة
-                      </button>
-                      <button
-                        onClick={sharePreparedImage}
-                        className="rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white hover:bg-emerald-700"
-                      >
-                        📤 مشاركة
-                      </button>
+                {/* 5. زر التفريغ / خبر جديد */}
+                <button
+                  onClick={resetForm}
+                  className="rounded-2xl bg-slate-200 px-6 py-3.5 font-extrabold text-slate-800 hover:bg-slate-300 transition"
+                >
+                 جديد
+                </button>
+              </div>
+              {/* 🐦 لوحة تويتر المنزلقة (تظهر تحت الأزرار مباشرة) */}
+              {showTwitterPanel && (
+                <div className="mt-5 rounded-2xl border-2 border-slate-200 bg-slate-50 p-5 space-y-4">
+                  
+                  {/* 🖼️ معاينة سريعة */}
+                  <div className="flex flex-col sm:flex-row gap-4 items-start">
+                    {imageUrl && (
+                      <img src={imageUrl} alt="معاينة" className="w-full sm:w-32 h-24 object-cover rounded-xl border border-slate-200 shadow-sm" />
+                    )}
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-bold text-slate-800 line-clamp-2">
+                        {title.trim().split(/\s+/).map((w, i) => i === 0 ? `#${w}` : w).join(" ")}
+                      </p>
+                      <p className="text-xs text-slate-500 line-clamp-2">
+                        {subTitle || plainBodyPreview}
+                      </p>
                     </div>
                   </div>
-                )}
+
+                  {/* 🏷️ إدخال الهاشتاقات */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-500">الهاشتاقات (Enter للإضافة)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newTagInput}
+                        onChange={(e) => setNewTagInput(e.target.value)}
+                        onKeyDown={handleTagKeyDown}
+                        placeholder="مثال: عاجل، رياضة، المملكة"
+                        className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-black bg-white"
+                      />
+                      <button onClick={addHashtag} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 transition">إضافة</button>
+                    </div>
+                  </div>
+
+                  {/* 📦 الهاشتاقات المحفوظة */}
+                  {hashtags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {hashtags.map(tag => (
+                        <span key={tag} className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                          #{tag}
+                          <button onClick={() => removeHashtag(tag)} className="hover:text-amber-900 transition">✕</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 🔢 العداد + زر النشر */}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${buildTweetText().length > 280 ? "text-red-600" : "text-emerald-600"}`}>
+                        {buildTweetText().length > 280 ? "⚠️ تجاوز الحد" : "✅ جاهز"}
+                      </span>
+                      <span className="text-xs text-slate-400">({buildTweetText().length}/280)</span>
+                    </div>
+                    <button
+                      onClick={publishToX}
+                      disabled={buildTweetText().length > 280}
+                      className="rounded-xl bg-black px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      🚀 نشر الآن
+                    </button>
+                  </div>
+
+                </div>
+              )}
+              {/* 🔹 منطقة المعاينة + أزرار الحفظ/المشاركة (تظهر فقط بعد التجهيز) */}
+              {showExportActions && generatedExportUrl && (
+                <div className="mt-4 rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-4 backdrop-blur-sm">
+                  <p className="mb-3 text-center text-sm font-bold text-amber-800">
+                    ✅ تم تجهيز البطاقة بنجاح
+                  </p>
+                  <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner">
+                    <img 
+                      src={generatedExportUrl} 
+                      alt="معاينة التصدير" 
+                      className="h-36 w-full object-contain" 
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={downloadPreparedImage}
+                      className="rounded-xl bg-slate-900 px-4 py-2.5 font-bold text-white hover:bg-slate-800 transition"
+                    >
+                      📥 حفظ الصورة
+                    </button>
+                    <button 
+                      onClick={sharePreparedImage}
+                      className="rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white hover:bg-emerald-700 transition"
+                    >
+                      📤 مشاركة
+                    </button>
+                  </div>
+                </div>
+              )}
               </div>
             </div>
 
@@ -1024,6 +1367,7 @@ function EditorPageContent() {
                     <img
                       src={imageUrl}
                       alt="خلفية"
+                      crossOrigin="anonymous"
                       className="absolute left-1/2 top-1/2 h-full w-full object-cover"
                       style={{
                         transform: imageTransform,
@@ -1078,10 +1422,11 @@ function EditorPageContent() {
                   </div>
 
                   <img
-                    src={LOGO_URL}
-                    alt="شعار"
-                    className="absolute right-5 top-1 z-20 w-[96px] drop-shadow-2xl"
-                  />
+  src={LOGO_URL}
+  crossOrigin="anonymous"
+  alt="شعار"
+  className="absolute right-5 -top-2 z-20 w-[96px] drop-shadow-2xl"
+/>
 
                   {isBreaking && (
                     <div className="absolute right-10 top-[74px] z-20 rounded-lg bg-red-500 px-3 py-1 text-sm font-black text-white shadow-lg">
@@ -1092,7 +1437,8 @@ function EditorPageContent() {
                   <img
                     src={LOGO_URL}
                     alt="علامة مائية"
-                    className="absolute bottom-5 left-5 z-20 w-[86px]"
+                    crossOrigin="anonymous"
+                    className="absolute bottom-2 left-5 z-20 w-[86px]"
                     style={{
                       opacity: watermarkOpacity,
                       transform: `scale(${watermarkScale})`,
@@ -1131,7 +1477,7 @@ function EditorPageContent() {
                     </h1>
                   </div>
 
-                  <div className="absolute bottom-14 left-8 right-8 z-20">
+                  <div className="absolute bottom-4 left-8 right-8 z-20">
                     <div className="mb-3 h-px bg-white/25" />
                     <div className="text-right text-[15px] font-black uppercase tracking-[0.08em] text-white/95">
                       almayn
