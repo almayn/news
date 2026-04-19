@@ -464,42 +464,34 @@ const prepareExportImage = async () => {
   showNotice("جاري تجهيز الصورة...", "info");
 
   try {
-    // 1️⃣ انتظار تحميل الخطوط والصور
     if (document.fonts?.ready) await document.fonts.ready;
     await waitForImagesToLoad(previewRef.current);
     await new Promise(resolve => setTimeout(resolve, 150));
 
-    // 2️⃣ تحديد نسبة البكسل حسب الجهاز
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-    const pixelRatio = isMobile ? 2 : 3;
+    // ✅ الأبعاد الثابتة الصحيحة: 1080 × 1920 (9:16 عمودي)
+    const EXPORT_WIDTH = 1080;
+    const EXPORT_HEIGHT = 1920;
+    const pixelRatio = 1; // لأننا حددنا الأبعاد بدقة
 
-    // 3️⃣ استخدام الأبعاد الفعلية للعنصر (أدق من offsetWidth)
-    const element = previewRef.current;
-    const rect = element.getBoundingClientRect();
-    
-    // ✅ التأكد من النسبة الصحيحة 9:16 (عمودي)
-    const targetWidth = Math.round(rect.width);
-    const targetHeight = Math.round(rect.height);
-
-    // 4️⃣ التصوير المباشر من العنصر الأصلي
-    const dataUrl = await htmlToImage.toPng(element, {
+    const dataUrl = await htmlToImage.toPng(previewRef.current, {
       pixelRatio,
       cacheBust: true,
       backgroundColor: "#0f172a",
       skipFonts: false,
-      // ✅ استخدام الأبعاد الدقيقة
-      width: targetWidth,
-      height: targetHeight,
-      canvasWidth: targetWidth * pixelRatio,
-      canvasHeight: targetHeight * pixelRatio,
+      // ✅ فرض الأبعاد الصحيحة
+      width: EXPORT_WIDTH,
+      height: EXPORT_HEIGHT,
+      canvasWidth: EXPORT_WIDTH,
+      canvasHeight: EXPORT_HEIGHT,
       style: {
+        width: `${EXPORT_WIDTH}px`,
+        height: `${EXPORT_HEIGHT}px`,
         transform: "none",
         transformOrigin: "top left",
         margin: "0",
         padding: "0",
-        borderRadius: "4px", // ✅ زوايا دائرية بسيطة
-        width: `${targetWidth}px`,
-        height: `${targetHeight}px`,
+        borderRadius: "4px",
+        objectFit: "cover",
       },
       filter: (node: HTMLElement) => {
         if (node.tagName === "IMG") return true;
@@ -507,35 +499,25 @@ const prepareExportImage = async () => {
       },
     });
 
-    // 5️⃣ حفظ النتيجة وعرض أزرار التحميل
     setGeneratedExportUrl(dataUrl);
     setShowExportActions(true);
-    showNotice("✅ تم تجهيز البطاقة بنجاح", "success");
+    showNotice("✅ تم التجهيز بدقة 1080×1920", "success");
 
   } catch (error: any) {
-    console.error("Export error (attempt 1):", error);
-
-    // 🔄 محاولة احتياطية بدقة أقل
+    console.error("Export error:", error);
+    
     try {
-      showNotice("جاري المحاولة بدقة متوافقة...", "info");
+      showNotice("جاري المحاولة بدقة أقل...", "info");
       
-      const element = previewRef.current;
-      const rect = element.getBoundingClientRect();
-      
-      const fallbackDataUrl = await htmlToImage.toPng(element, {
-        pixelRatio: 1,
+      const fallbackDataUrl = await htmlToImage.toPng(previewRef.current, {
+        pixelRatio: 2,
         backgroundColor: "#0f172a",
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
-        canvasWidth: Math.round(rect.width),
-        canvasHeight: Math.round(rect.height),
+        width: 560,
+        height: 996, // 560 × 16/9
         style: { 
           transform: "none",
           borderRadius: "4px",
-          margin: "0",
-          padding: "0",
         },
-        cacheBust: true,
       });
 
       setGeneratedExportUrl(fallbackDataUrl);
@@ -544,7 +526,7 @@ const prepareExportImage = async () => {
       
     } catch (fallbackErr) {
       console.error("Export fallback failed:", fallbackErr);
-      showNotice("⚠️ تعذر تجهيز الصورة، جرب تحديث الصفحة", "error");
+      showNotice("⚠️ تعذر تجهيز الصورة", "error");
     }
     
   } finally {
