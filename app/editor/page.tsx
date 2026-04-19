@@ -450,7 +450,6 @@ const uploadImageAndArchive = async () => {
 };
 
   // 🔹 دالة تجهيز الصورة للتصدير (نسخة مبسطة وموثوقة)
-// 🔹 التصدير بصيغة JPEG (الأفضل لسناب شات وتويتر)
 const prepareExportImage = async () => {
   if (!previewRef.current) return;
 
@@ -465,27 +464,42 @@ const prepareExportImage = async () => {
   showNotice("جاري تجهيز الصورة...", "info");
 
   try {
+    // 1️⃣ انتظار تحميل الخطوط والصور
     if (document.fonts?.ready) await document.fonts.ready;
     await waitForImagesToLoad(previewRef.current);
     await new Promise(resolve => setTimeout(resolve, 150));
 
-    const element = previewRef.current;
-    const pixelRatio = typeof window !== 'undefined' && window.innerWidth < 768 ? 2 : 3;
+    // 2️⃣ تحديد نسبة البكسل حسب الجهاز
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const pixelRatio = isMobile ? 2 : 3;
 
-    // 🔹 التصدير كـ JPEG (أصغر حجماً وأسرع)
-    const dataUrl = await htmlToImage.toJpeg(element, {
+    // 3️⃣ استخدام الأبعاد الفعلية للعنصر (أدق من offsetWidth)
+    const element = previewRef.current;
+    const rect = element.getBoundingClientRect();
+    
+    // ✅ التأكد من النسبة الصحيحة 9:16 (عمودي)
+    const targetWidth = Math.round(rect.width);
+    const targetHeight = Math.round(rect.height);
+
+    // 4️⃣ التصوير المباشر من العنصر الأصلي
+    const dataUrl = await htmlToImage.toPng(element, {
       pixelRatio,
       cacheBust: true,
       backgroundColor: "#0f172a",
-      quality: 0.95, // جودة عالية 95%
-      width: element.offsetWidth,
-      height: element.offsetHeight,
+      skipFonts: false,
+      // ✅ استخدام الأبعاد الدقيقة
+      width: targetWidth,
+      height: targetHeight,
+      canvasWidth: targetWidth * pixelRatio,
+      canvasHeight: targetHeight * pixelRatio,
       style: {
         transform: "none",
         transformOrigin: "top left",
         margin: "0",
         padding: "0",
-        // ✅ لا نغير الزوايا - نتركها كما هي في التصميم
+        borderRadius: "4px", // ✅ زوايا دائرية بسيطة
+        width: `${targetWidth}px`,
+        height: `${targetHeight}px`,
       },
       filter: (node: HTMLElement) => {
         if (node.tagName === "IMG") return true;
@@ -493,25 +507,46 @@ const prepareExportImage = async () => {
       },
     });
 
+    // 5️⃣ حفظ النتيجة وعرض أزرار التحميل
     setGeneratedExportUrl(dataUrl);
     setShowExportActions(true);
-    showNotice("✅ تم التجهيز بصيغة JPEG (حجم صغير)", "success");
+    showNotice("✅ تم تجهيز البطاقة بنجاح", "success");
 
   } catch (error: any) {
-    console.error("Export error:", error);
-    // 🔹 fallback لـ PNG إذا فشل JPEG
+    console.error("Export error (attempt 1):", error);
+
+    // 🔄 محاولة احتياطية بدقة أقل
     try {
-      showNotice("جاري المحاولة بصيغة PNG...", "info");
-      const fallbackUrl = await htmlToImage.toPng(previewRef.current, {
-        pixelRatio: 2,
+      showNotice("جاري المحاولة بدقة متوافقة...", "info");
+      
+      const element = previewRef.current;
+      const rect = element.getBoundingClientRect();
+      
+      const fallbackDataUrl = await htmlToImage.toPng(element, {
+        pixelRatio: 1,
         backgroundColor: "#0f172a",
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        canvasWidth: Math.round(rect.width),
+        canvasHeight: Math.round(rect.height),
+        style: { 
+          transform: "none",
+          borderRadius: "4px",
+          margin: "0",
+          padding: "0",
+        },
+        cacheBust: true,
       });
-      setGeneratedExportUrl(fallbackUrl);
+
+      setGeneratedExportUrl(fallbackDataUrl);
       setShowExportActions(true);
-      showNotice("✅ تم التجهيز بصيغة PNG", "success");
-    } catch {
-      showNotice("⚠️ تعذر التجهيز", "error");
+      showNotice("✅ تم التجهيز (دقة متوافقة)", "success");
+      
+    } catch (fallbackErr) {
+      console.error("Export fallback failed:", fallbackErr);
+      showNotice("⚠️ تعذر تجهيز الصورة، جرب تحديث الصفحة", "error");
     }
+    
   } finally {
     setIsExporting(false);
   }
