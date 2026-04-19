@@ -459,66 +459,72 @@ const prepareExportImage = async () => {
   }
 
   setIsExporting(true);
-  setGeneratedExportUrl("");
+  setGeneratedExportUrl(""); // نستخدم المتغير الجديد
   setShowExportActions(false);
   showNotice("جاري تجهيز الصورة...", "info");
 
   try {
+    // 1️⃣ انتظار تحميل الخطوط والصور
     if (document.fonts?.ready) await document.fonts.ready;
     await waitForImagesToLoad(previewRef.current);
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 150)); // انتظار بسيط لتحديث الـ CSS
 
-    // 🔹 الأبعاد الدقيقة لسناب شات (بدون حسابات تقريبية)
-    const SNAP_WIDTH = 1080;
-    const SNAP_HEIGHT = 1920;
-    
+    // 2️⃣ تحديد نسبة البكسل حسب الجهاز (لجودة أفضل وتجنب أخطاء الذاكرة)
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const pixelRatio = isMobile ? 2 : 3;
+
+    // 3️⃣ التصوير المباشر من العنصر الأصلي (بدون clone لتجنب مشاكل الـ CSS)
     const dataUrl = await htmlToImage.toPng(previewRef.current, {
-      pixelRatio: SNAP_WIDTH / previewRef.current.offsetWidth,
+      pixelRatio,
       cacheBust: true,
       backgroundColor: "#0f172a",
       skipFonts: false,
-      // 🔹 تحديد الأبعاد صراحةً (هذا هو الحل الجذري)
-      width: SNAP_WIDTH,
-      height: SNAP_HEIGHT,
-      canvasWidth: SNAP_WIDTH,
-      canvasHeight: SNAP_HEIGHT,
+      // نستخدم أبعاد العنصر كما هي لضمان تطابق التصميم
+      width: previewRef.current.offsetWidth,
+      height: previewRef.current.offsetHeight,
       style: {
-        width: `${SNAP_WIDTH}px`,
-        height: `${SNAP_HEIGHT}px`,
-        transform: "none",
+        transform: "none", // إلغاء أي تحويلات لضمان دقة القياس
         transformOrigin: "top left",
         margin: "0",
         padding: "0",
-        borderRadius: "0",
-        objectFit: "cover",
       },
+      // فلتر لاستبعاد أي عناصر لا نريدها في التصدير
       filter: (node: HTMLElement) => {
         if (node.tagName === "IMG") return true;
         return !node.classList?.contains("no-export");
       },
     });
 
+    // 4️⃣ حفظ النتيجة وعرض أزرار التحميل
     setGeneratedExportUrl(dataUrl);
     setShowExportActions(true);
-    showNotice("✅ تم التجهيز بدقة 1080×1920", "success");
+    showNotice("✅ تم تجهيز البطاقة بنجاح", "success");
 
   } catch (error: any) {
-    console.error("Export error:", error);
+    console.error("Export error (attempt 1):", error);
+
+    // 🔄 محاولة احتياطية بدقة أقل في حال الفشل الأول
     try {
-      showNotice("جاري المحاولة بدقة أقل...", "info");
-      const fallbackUrl = await htmlToImage.toPng(previewRef.current, {
-        pixelRatio: 2,
+      showNotice("جاري المحاولة بدقة متوافقة...", "info");
+      
+      const fallbackDataUrl = await htmlToImage.toPng(previewRef.current, {
+        pixelRatio: 1, // أقل دقة لضمان النجاح
         backgroundColor: "#0f172a",
-        width: 1080,
-        height: 1920,
-        style: { transform: "none", borderRadius: "0" },
+        width: previewRef.current?.offsetWidth,
+        height: previewRef.current?.offsetHeight,
+        style: { transform: "none" },
+        cacheBust: true,
       });
-      setGeneratedExportUrl(fallbackUrl);
+
+      setGeneratedExportUrl(fallbackDataUrl);
       setShowExportActions(true);
-      showNotice("✅ تم التجهيز", "success");
-    } catch {
-      showNotice("⚠️ تعذر التجهيز", "error");
+      showNotice("✅ تم التجهيز (دقة متوافقة)", "success");
+      
+    } catch (fallbackErr) {
+      console.error("Export fallback failed:", fallbackErr);
+      showNotice("⚠️ تعذر تجهيز الصورة، جرب تحديث الصفحة", "error");
     }
+    
   } finally {
     setIsExporting(false);
   }
