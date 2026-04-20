@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import * as htmlToImage from "html-to-image";
 
-const CATEGORY_OPTIONS = ["عام", "رياضة", "مجتمع", "مقالات"];
+const CATEGORY_OPTIONS = ["عام", "منوعات", "رياضة", "مجتمع", "مقالات"];
 const GOLD = "#c8a96b";
 const LOGO_URL =
   "https://gjryvqpwncnkpghaiytl.supabase.co/storage/v1/object/public/fonts/almassslogo.png";
@@ -101,12 +101,7 @@ function NormalPreview({
           </div>
         )}
       </div>
-<img
-  src={LOGO_URL}
-  alt="علامة مائية"
-  crossOrigin="anonymous"
-  className="pointer-events-none absolute bottom-3 left-3 z-10 w-[64px] opacity-70 drop-shadow-xl"
-/>
+
       <div className="space-y-4 p-5 md:p-6">
         <div className="flex flex-wrap items-center gap-2 text-xs font-extrabold">
           <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">

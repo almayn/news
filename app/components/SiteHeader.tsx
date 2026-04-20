@@ -7,7 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 const LOGO_URL =
   "https://gjryvqpwncnkpghaiytl.supabase.co/storage/v1/object/public/fonts/almaslogo1.png";
 
-const categories = ["الرئيسية", "عام", "رياضة", "مجتمع", "مقالات"];
+const categories = ["عام", "منوعات", "رياضة", "مجتمع", "مقالات"];
 
 function SiteHeaderContent() {
   const pathname = usePathname();
@@ -20,7 +20,7 @@ function SiteHeaderContent() {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
 
   const categoryFromUrl = searchParams.get("category");
-  const activeCategory = pathname === "/" ? categoryFromUrl || "الرئيسية" : "";
+const activeCategory = pathname === "/" ? categoryFromUrl || "عام" : "";
 
   const todayText = new Date().toLocaleDateString("ar-SA", {
     weekday: "long",
@@ -29,14 +29,14 @@ function SiteHeaderContent() {
     day: "numeric",
   });
 
-  const handleCategoryClick = (category: string) => {
-    if (category === "الرئيسية") {
-      router.push("/");
-      return;
-    }
+ const handleCategoryClick = (category: string) => {
+  if (category === "عام") {
+    router.push("/");
+    return;
+  }
 
-    router.push(`/?category=${encodeURIComponent(category)}`);
-  };
+  router.push(`/?category=${encodeURIComponent(category)}`);
+};
 
   const updateScrollState = () => {
     const el = scrollRef.current;

@@ -24,7 +24,7 @@ function HomeContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   const searchParams = useSearchParams();
-  const activeCategory = searchParams.get("category") || "الرئيسية";
+  const activeCategory = searchParams.get("category") || "عام";
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 11;
@@ -81,7 +81,7 @@ function HomeContent() {
   }, [news]);
 
   useEffect(() => {
-    if (activeCategory === "الرئيسية") {
+   if (activeCategory === "عام") {
       setFilteredNews(regularNews);
     } else {
       setFilteredNews(
@@ -109,8 +109,10 @@ function HomeContent() {
   const heroArticle = currentItems[0];
   const gridArticles = currentItems.slice(1);
 
-  const previousPosts =
-    activeCategory === "الرئيسية" ? regularNews.slice(itemsPerPage) : [];
+ const previousPosts =
+  activeCategory === "عام"
+    ? regularNews.slice(itemsPerPage)
+    : filteredNews.slice(itemsPerPage);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -247,46 +249,48 @@ function HomeContent() {
             </div>
 
             <aside className="space-y-6">
-              <section className="overflow-hidden rounded-3xl border border-[#c8a96b]/20 bg-white shadow-sm">
-                <div className="bg-gradient-to-r from-[#0f3d75] to-[#14508f] px-4 py-3">
-                  <h2 className="text-center text-base font-black text-white">
-                    مقالات
-                  </h2>
-                </div>
+              
+             {activeCategory === "عام" && (
+  <section className="overflow-hidden rounded-3xl border border-[#c8a96b]/20 bg-white shadow-sm">
+    <div className="bg-gradient-to-r from-[#0f3d75] to-[#14508f] px-4 py-3">
+      <h2 className="text-center text-base font-black text-white">
+        مقالات
+      </h2>
+    </div>
 
-                <div className="p-4">
-                  {latestArticle ? (
-                    <Link href={`/news/${latestArticle.id}`} className="group block">
-                      <div className="space-y-3">
-                        <h3 className="text-center text-lg font-black leading-8 text-slate-900 transition group-hover:text-primary-700">
-                          {latestArticle.title}
-                        </h3>
+    <div className="p-4">
+      {latestArticle ? (
+        <Link href={`/news/${latestArticle.id}`} className="group block">
+          <div className="space-y-3">
+            <h3 className="text-center text-lg font-black leading-8 text-slate-900 transition group-hover:text-primary-700">
+              {latestArticle.title}
+            </h3>
 
-                        {latestArticle.image_url && (
-                          <div className="overflow-hidden rounded-2xl">
-                            <img
-                              src={latestArticle.image_url}
-                              alt={latestArticle.title}
-                              className="h-52 w-full object-cover transition duration-500 group-hover:scale-105"
-                            />
-                          </div>
-                        )}
+            {latestArticle.image_url && (
+              <div className="overflow-hidden rounded-2xl">
+                <img
+                  src={latestArticle.image_url}
+                  alt={latestArticle.title}
+                  className="h-52 w-full object-cover transition duration-500 group-hover:scale-105"
+                />
+              </div>
+            )}
 
-                        {(latestArticle.source || latestArticle.author) && (
-                          <p className="text-center text-sm font-bold text-primary-700">
-                            الكاتب: {latestArticle.source || latestArticle.author}
-                          </p>
-                        )}
-                      </div>
-                    </Link>
-                  ) : (
-                    <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
-                      لا توجد مقالات حالياً
-                    </div>
-                  )}
-                </div>
-              </section>
-
+            {(latestArticle.source || latestArticle.author) && (
+              <p className="text-center text-sm font-bold text-primary-700">
+                الكاتب: {latestArticle.source || latestArticle.author}
+              </p>
+            )}
+          </div>
+        </Link>
+      ) : (
+        <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
+          لا توجد مقالات حالياً
+        </div>
+      )}
+    </div>
+  </section>
+)}
               <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
                 <div className="bg-slate-100 px-4 py-3">
                   <h2 className="text-center text-base font-black text-[#0f3d75]">
@@ -295,36 +299,30 @@ function HomeContent() {
                 </div>
 
                 <div className="p-3">
-                  {activeCategory === "الرئيسية" ? (
-                    previousPosts.length > 0 ? (
-                      <ul className="space-y-2">
-                        {previousPosts.map((item, index) => (
-                          <li key={item.id}>
-                            <Link
-                              href={`/news/${item.id}`}
-                              className="group flex items-start gap-3 rounded-2xl px-3 py-2 transition hover:bg-slate-50"
-                            >
-                              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0f3d75] text-xs font-black text-white">
-                                {index + 1}
-                              </span>
+                  {previousPosts.length > 0 ? (
+  <ul className="space-y-2">
+    {previousPosts.slice(0, 6).map((item, index) => (
+      <li key={item.id}>
+        <Link
+          href={`/news/${item.id}`}
+          className="group flex items-start gap-3 rounded-2xl px-3 py-2 transition hover:bg-slate-50"
+        >
+          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0f3d75] text-xs font-black text-white">
+            {index + 1}
+          </span>
 
-                              <span className="line-clamp-2 text-sm font-bold leading-6 text-slate-800 transition group-hover:text-primary-700">
-                                {item.title}
-                              </span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
-                        لا توجد منشورات سابقة
-                      </div>
-                    )
-                  ) : (
-                    <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
-                      تظهر المنشورات السابقة في الصفحة الرئيسية فقط
-                    </div>
-                  )}
+          <span className="line-clamp-2 text-sm font-bold leading-6 text-slate-800 transition group-hover:text-[#0f3d75]">
+            {item.title}
+          </span>
+        </Link>
+      </li>
+    ))}
+  </ul>
+) : (
+  <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
+    لا توجد منشورات سابقة في هذا القسم
+  </div>
+)}
                 </div>
               </section>
             </aside>
