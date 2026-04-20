@@ -204,7 +204,7 @@ function SnapPreview({
           height: "711px",
         }}
       >
-        {imageUrl ? (
+          {imageUrl ? (
           <img
             src={imageUrl}
             alt="خلفية"
@@ -1072,773 +1072,771 @@ function EditorPageContent() {
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-400 border-t-transparent"></div>
           </div>
         ) : (
-         <div className="space-y-6 xl:grid xl:grid-cols-[1.05fr_0.95fr] xl:gap-8 xl:space-y-0">
-  {/* 🔹 1️⃣ حاوية المعاينة: تظهر أولاً على الجوال وتثبت أثناء التمرير، وتعود للعمود الثاني على الديسكتوب */}
-  <div className="xl:order-2">
-    <div className="sticky top-2 z-30 bg-slate-100/95 pb-4 backdrop-blur-sm xl:static xl:bg-transparent xl:pb-0 xl:backdrop-blur-none">
-      <div className="mb-4 flex items-center justify-between px-2">
-        <h2 className="text-xl font-black text-slate-800">المعاينة الحالية</h2>
-        <span className="rounded-full bg-white px-4 py-2 text-xs font-bold text-slate-500 shadow-sm">
-          {editorMode === "snap" ? "عرض سناب" : "عرض الخبر"}
-        </span>
-      </div>
-
-      <div className="flex justify-center rounded-3xl bg-slate-200 p-3 md:p-6 shadow-inner">
-        {editorMode === "normal" ? (
-          <div ref={previewRef}>
-            <NormalPreview
-              title={title}
-              subTitle={subTitle}
-              bodyPreview={plainBodyPreview}
-              category={category}
-              source={source}
-              author={author}
-              imageUrl={imageUrl}
-              isBreaking={isBreaking}
-              isPoem={isPoem}
-              formatDate={formatDate}
-              normalImagePositionY={normalImagePositionY}
-            />
-          </div>
-        ) : (
-          <SnapPreview
-            previewRef={previewRef}
-            imageUrl={imageUrl}
-            snapImageTransform={snapImageTransform}
-            snapImageWidth={snapImageWidth}
-            imageScale={imageScale}
-            overlayBrightness={overlayBrightness}
-            overlayStrength={overlayStrength}
-            blurAmount={blurAmount}
-            blurOpacity={blurOpacity}
-            blurColor={blurColor}
-            watermarkOpacity={watermarkOpacity}
-            watermarkScale={watermarkScale}
-            textBlockBottom={textBlockBottom}
-            titleColor={titleColor}
-            subTitleColor={subTitleColor}
-            subtitleBgOpacity={subtitleBgOpacity}
-            subtitleBgColor={subtitleBgColor}
-            textStrokeStyle={textStrokeStyle}
-            title={title}
-            subTitle={subTitle}
-            isBreaking={isBreaking}
-            formatDate={formatDate}
-            isPreparingCleanExport={isPreparingCleanExport}
-          />
-        )}
-      </div>
-    </div>
-  </div>
-
-  {/* 🔹 2️⃣ حاوية الخيارات: تمرر أسفل المعاينة على الجوال، وتعود للعمود الأول على الديسكتوب */}
-  <div className="xl:order-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-    <div className="space-y-5">
-      <div className="flex flex-wrap gap-3">
-        <button
-          onClick={resetForm}
-          className="rounded-2xl bg-emerald-600 px-5 py-3 font-extrabold text-white transition hover:bg-emerald-700"
-        >
-          خبر جديد
-        </button>
-
-        {isEditMode && (
-          <button
-            onClick={deleteArticle}
-            disabled={isSavingArticle}
-            className="rounded-2xl bg-red-700 px-5 py-3 font-extrabold text-white transition hover:bg-red-800 disabled:opacity-60"
-          >
-            حذف
-          </button>
-        )}
-      </div>
-
-      <div>
-        <label className="mb-2 block text-sm font-bold text-slate-700">
-          العنوان الرئيسي
-        </label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-lg font-black outline-none transition focus:bg-white"
-        />
-      </div>
-
-      <div className="-mt-2">
-        <label className="mb-2 block text-sm font-bold text-slate-700">
-          العنوان الثانوي
-        </label>
-        <input
-          type="text"
-          value={subTitle}
-          onChange={(e) => setSubTitle(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
-        />
-      </div>
-
-      {editorMode === "normal" && (
-        <>
-          <div>
-            <label className="mb-2 block text-sm font-bold text-slate-700">
-              نص الخبر
-            </label>
-
-            <button
-              onClick={() => setIsTextExpanded(!isTextExpanded)}
-              className="mb-2 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 md:hidden"
-            >
-              {isTextExpanded
-                ? "إخفاء النص ▲"
-                : "اضغط لإظهار مربع الكتابة ▼"}
-            </button>
-
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={10}
-              className={`w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-8 outline-none transition-all duration-300 focus:bg-white ${
-                isTextExpanded ? "block" : "hidden md:block"
-              }`}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
-              <span className="text-sm font-extrabold text-slate-800">
-                عاجل
-              </span>
-              <input
-                type="checkbox"
-                checked={isBreaking}
-                onChange={(e) => setIsBreaking(e.target.checked)}
-                className="h-5 w-5 accent-red-600"
-              />
-            </label>
-
-            <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
-              <span className="text-sm font-extrabold text-slate-800">
-                نص شعري
-              </span>
-              <input
-                type="checkbox"
-                checked={isPoem}
-                onChange={(e) => setIsPoem(e.target.checked)}
-                className="h-5 w-5 accent-[#c8a96b]"
-              />
-            </label>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-              <span>تحريك الصورة داخل الخبر فوق / تحت</span>
-              <span>{normalImagePositionY}%</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={normalImagePositionY}
-              onChange={(e) => setNormalImagePositionY(Number(e.target.value))}
-              className="w-full accent-slate-900"
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                التصنيف
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
-              >
-                {CATEGORY_OPTIONS.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                المصدر
-              </label>
-              <input
-                type="text"
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
-              />
-            </div>
-          </div>
-
-          {category === "مقالات" && (
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                اسم الكاتب
-              </label>
-              <input
-                type="text"
-                value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
-              />
-            </div>
-          )}
-        </>
-      )}
-
-      {editorMode === "snap" && (
-        <>
-          <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
-            <span className="text-sm font-extrabold text-slate-800">
-              شارة عاجل
-            </span>
-            <input
-              type="checkbox"
-              checked={isBreaking}
-              onChange={(e) => setIsBreaking(e.target.checked)}
-              className="h-5 w-5 accent-red-600"
-            />
-          </label>
-
-          <div className="space-y-6 rounded-2xl border-2 border-amber-200 bg-amber-50/30 p-5">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-500">
-                    لون العنوان الرئيسي
-                  </label>
-                  <input
-                    type="color"
-                    value={titleColor}
-                    onChange={(e) => setTitleColor(e.target.value)}
-                    className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-500">
-                    لون إحاطة العنوان
-                  </label>
-                  <input
-                    type="color"
-                    value={titleStrokeColor}
-                    onChange={(e) => setTitleStrokeColor(e.target.value)}
-                    className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-bold text-slate-500">
-                    <span>سمك الإحاطة</span>
-                    <span>{titleStrokeWidth}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="4"
-                    step="0.2"
-                    value={titleStrokeWidth}
-                    onChange={(e) =>
-                      setTitleStrokeWidth(Number(e.target.value))
-                    }
-                    className="w-full accent-slate-900"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-500">
-                    لون العنوان الثانوي
-                  </label>
-                  <input
-                    type="color"
-                    value={subTitleColor}
-                    onChange={(e) => setSubTitleColor(e.target.value)}
-                    className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-bold text-slate-500">
-                    <span>خلفية العنوان الثانوي</span>
-                    <span>{subtitleBgOpacity}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={subtitleBgOpacity}
-                    onChange={(e) =>
-                      setSubtitleBgOpacity(Number(e.target.value))
-                    }
-                    className="w-full accent-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-500">
-                    لون خلفية العنوان الثانوي
-                  </label>
-                  <input
-                    type="color"
-                    value={subtitleBgColor}
-                    onChange={(e) => setSubtitleBgColor(e.target.value)}
-                    className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 border-t border-amber-200 pt-4 md:grid-cols-3">
-              <div>
-                <div className="flex justify-between text-xs font-bold text-slate-500">
-                  <span>قوة التمويه</span>
-                  <span>{blurAmount}px</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="50"
-                  value={blurAmount}
-                  onChange={(e) => setBlurAmount(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-bold text-slate-500">
-                  <span>شفافية الخلفية</span>
-                  <span>{(blurOpacity * 100).toFixed(0)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={blurOpacity}
-                  onChange={(e) => setBlurOpacity(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-500">
-                  لون الخلفية
-                </label>
-                <input
-                  type="color"
-                  value={blurColor}
-                  onChange={(e) => setBlurColor(e.target.value)}
-                  className="h-8 w-full cursor-pointer rounded-lg"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-                  <span>تحريك الصورة يمين / يسار</span>
-                  <span>{imagePositionX}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="35"
-                  max="65"
-                  value={imagePositionX}
-                  onChange={(e) => setImagePositionX(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-
-              <div>
-                <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-                  <span>تحريك الصورة فوق / تحت</span>
-                  <span>{imagePositionY}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="35"
-                  max="65"
-                  value={imagePositionY}
-                  onChange={(e) => setImagePositionY(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-
-              <div>
-                <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-                  <span>عرض الصورة</span>
-                  <span>{snapImageWidth}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="110"
-                  max="220"
-                  value={snapImageWidth}
-                  onChange={(e) => setSnapImageWidth(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-
-              <div>
-                <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-                  <span>تكبير الصورة</span>
-                  <span>{imageScale.toFixed(2)}x</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="2.2"
-                  step="0.02"
-                  value={imageScale}
-                  onChange={(e) => setImageScale(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-
-              <div>
-                <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-                  <span>رفع / خفض النص</span>
-                  <span>{textOffsetY}px</span>
-                </div>
-                <input
-                  type="range"
-                  min="-150"
-                  max="150"
-                  value={textOffsetY}
-                  onChange={(e) => setTextOffsetY(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-
-              <div>
-                <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-                  <span>تعتيم الطبقة</span>
-                  <span>{overlayStrength}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="70"
-                  value={overlayStrength}
-                  onChange={(e) => setOverlayStrength(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-
-              <div>
-                <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-                  <span>سطوع الصورة</span>
-                  <span>{overlayBrightness}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="60"
-                  max="120"
-                  value={overlayBrightness}
-                  onChange={(e) => setOverlayBrightness(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-
-              <div>
-                <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-                  <span>شفافية العلامة</span>
-                  <span>{(watermarkOpacity * 100).toFixed(0)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.2"
-                  max="1"
-                  step="0.05"
-                  value={watermarkOpacity}
-                  onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-
-              <div>
-                <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-                  <span>حجم العلامة</span>
-                  <span>{watermarkScale.toFixed(2)}x</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.7"
-                  max="1.6"
-                  step="0.05"
-                  value={watermarkScale}
-                  onChange={(e) => setWatermarkScale(Number(e.target.value))}
-                  className="w-full accent-slate-900"
-                />
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <label className="text-sm font-extrabold text-slate-800">
-            صورة الخبر والأرشفة
-          </label>
-
-          <div className="flex gap-1 rounded-lg bg-slate-200 p-1">
-            <button
-              onClick={() => setShowLibrary(false)}
-              className={`rounded-md px-3 py-1 text-xs font-bold transition ${
-                !showLibrary
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              رفع جديد
-            </button>
-
-            <button
-              onClick={() => setShowLibrary(true)}
-              className={`rounded-md px-3 py-1 text-xs font-bold transition ${
-                showLibrary
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              المكتبة
-            </button>
-          </div>
-        </div>
-
-        {!showLibrary ? (
-          <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="اسم الصورة للأرشفة"
-              value={customImageName}
-              onChange={(e) => setCustomImageName(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-            />
-
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              disabled={isUploadingImage}
-              className="block w-full text-sm text-slate-500 file:ml-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-slate-900 file:px-5 file:py-2.5 file:text-sm file:font-bold file:text-white hover:file:bg-slate-800"
-            />
-
-            {isUploadingImage && (
-              <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></div>
-                جاري تجهيز الصورة...
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="ابحث في أرشيف الصور..."
-              value={librarySearch}
-              onChange={(e) => handleLibrarySearch(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-            />
-
-            <div className="grid max-h-[160px] grid-cols-3 gap-2 overflow-y-auto p-1">
-              {libraryResults.length > 0 ? (
-                libraryResults.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setImageUrl(item.url);
-                      setCustomImageName(item.name || "");
-                      setSelectedImageFile(null);
-                      showNotice(`تم اختيار: ${item.name}`, "info");
-                      setShowLibrary(false);
-                    }}
-                    className="group relative h-20 cursor-pointer overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-amber-500 hover:shadow-lg"
+          <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+              <div className="space-y-5">
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={resetForm}
+                    className="rounded-2xl bg-emerald-600 px-5 py-3 font-extrabold text-white transition hover:bg-emerald-700"
                   >
-                    <img
-                      src={item.url}
-                      alt={item.name}
-                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                    />
+                    خبر جديد
+                  </button>
 
-                    <div className="absolute inset-x-0 bottom-0 truncate bg-black/70 p-1 text-[9px] font-bold text-white">
-                      {item.name}
+                  {isEditMode && (
+                    <button
+                      onClick={deleteArticle}
+                      disabled={isSavingArticle}
+                      className="rounded-2xl bg-red-700 px-5 py-3 font-extrabold text-white transition hover:bg-red-800 disabled:opacity-60"
+                    >
+                      حذف
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                    العنوان الرئيسي
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-lg font-black outline-none transition focus:bg-white"
+                  />
+                </div>
+
+                <div className="-mt-2">
+                  <label className="mb-2 block text-sm font-bold text-slate-700">
+                    العنوان الثانوي
+                  </label>
+                  <input
+                    type="text"
+                    value={subTitle}
+                    onChange={(e) => setSubTitle(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
+                  />
+                </div>
+
+                {editorMode === "normal" && (
+                  <>
+                    <div>
+                      <label className="mb-2 block text-sm font-bold text-slate-700">
+                        نص الخبر
+                      </label>
+
+                      <button
+                        onClick={() => setIsTextExpanded(!isTextExpanded)}
+                        className="mb-2 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 md:hidden"
+                      >
+                        {isTextExpanded
+                          ? "إخفاء النص ▲"
+                          : "اضغط لإظهار مربع الكتابة ▼"}
+                      </button>
+
+                      <textarea
+                        value={body}
+                        onChange={(e) => setBody(e.target.value)}
+                        rows={10}
+                        className={`w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-8 outline-none transition-all duration-300 focus:bg-white ${
+                          isTextExpanded ? "block" : "hidden md:block"
+                        }`}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
+                        <span className="text-sm font-extrabold text-slate-800">
+                          عاجل
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={isBreaking}
+                          onChange={(e) => setIsBreaking(e.target.checked)}
+                          className="h-5 w-5 accent-red-600"
+                        />
+                      </label>
+
+                      <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
+                        <span className="text-sm font-extrabold text-slate-800">
+                          نص شعري
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={isPoem}
+                          onChange={(e) => setIsPoem(e.target.checked)}
+                          className="h-5 w-5 accent-[#c8a96b]"
+                        />
+                      </label>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                        <span>تحريك الصورة داخل الخبر فوق / تحت</span>
+                        <span>{normalImagePositionY}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={normalImagePositionY}
+                        onChange={(e) => setNormalImagePositionY(Number(e.target.value))}
+                        className="w-full accent-slate-900"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm font-bold text-slate-700">
+                          التصنيف
+                        </label>
+                        <select
+                          value={category}
+                          onChange={(e) => setCategory(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
+                        >
+                          {CATEGORY_OPTIONS.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-bold text-slate-700">
+                          المصدر
+                        </label>
+                        <input
+                          type="text"
+                          value={source}
+                          onChange={(e) => setSource(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    {category === "مقالات" && (
+                      <div>
+                        <label className="mb-2 block text-sm font-bold text-slate-700">
+                          اسم الكاتب
+                        </label>
+                        <input
+                          type="text"
+                          value={author}
+                          onChange={(e) => setAuthor(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {editorMode === "snap" && (
+                  <>
+                    <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
+                      <span className="text-sm font-extrabold text-slate-800">
+                        شارة عاجل
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={isBreaking}
+                        onChange={(e) => setIsBreaking(e.target.checked)}
+                        className="h-5 w-5 accent-red-600"
+                      />
+                    </label>
+
+                    <div className="space-y-6 rounded-2xl border-2 border-amber-200 bg-amber-50/30 p-5">
+                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                        <div className="space-y-4">
+                          <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-500">
+                              لون العنوان الرئيسي
+                            </label>
+                            <input
+                              type="color"
+                              value={titleColor}
+                              onChange={(e) => setTitleColor(e.target.value)}
+                              className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-500">
+                              لون إحاطة العنوان
+                            </label>
+                            <input
+                              type="color"
+                              value={titleStrokeColor}
+                              onChange={(e) => setTitleStrokeColor(e.target.value)}
+                              className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-xs font-bold text-slate-500">
+                              <span>سمك الإحاطة</span>
+                              <span>{titleStrokeWidth}px</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0"
+                              max="4"
+                              step="0.2"
+                              value={titleStrokeWidth}
+                              onChange={(e) =>
+                                setTitleStrokeWidth(Number(e.target.value))
+                              }
+                              className="w-full accent-slate-900"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-500">
+                              لون العنوان الثانوي
+                            </label>
+                            <input
+                              type="color"
+                              value={subTitleColor}
+                              onChange={(e) => setSubTitleColor(e.target.value)}
+                              className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between text-xs font-bold text-slate-500">
+                              <span>خلفية العنوان الثانوي</span>
+                              <span>{subtitleBgOpacity}%</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={subtitleBgOpacity}
+                              onChange={(e) =>
+                                setSubtitleBgOpacity(Number(e.target.value))
+                              }
+                              className="w-full accent-slate-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-500">
+                              لون خلفية العنوان الثانوي
+                            </label>
+                            <input
+                              type="color"
+                              value={subtitleBgColor}
+                              onChange={(e) => setSubtitleBgColor(e.target.value)}
+                              className="h-10 w-full cursor-pointer rounded-xl border-0 bg-transparent"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 border-t border-amber-200 pt-4 md:grid-cols-3">
+                        <div>
+                          <div className="flex justify-between text-xs font-bold text-slate-500">
+                            <span>قوة التمويه</span>
+                            <span>{blurAmount}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="50"
+                            value={blurAmount}
+                            onChange={(e) => setBlurAmount(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-xs font-bold text-slate-500">
+                            <span>شفافية الخلفية</span>
+                            <span>{(blurOpacity * 100).toFixed(0)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={blurOpacity}
+                            onChange={(e) => setBlurOpacity(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-xs font-bold text-slate-500">
+                            لون الخلفية
+                          </label>
+                          <input
+                            type="color"
+                            value={blurColor}
+                            onChange={(e) => setBlurColor(e.target.value)}
+                            className="h-8 w-full cursor-pointer rounded-lg"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>تحريك الصورة يمين / يسار</span>
+                            <span>{imagePositionX}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="35"
+                            max="65"
+                            value={imagePositionX}
+                            onChange={(e) => setImagePositionX(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>تحريك الصورة فوق / تحت</span>
+                            <span>{imagePositionY}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="35"
+                            max="65"
+                            value={imagePositionY}
+                            onChange={(e) => setImagePositionY(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>عرض الصورة</span>
+                            <span>{snapImageWidth}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="110"
+                            max="220"
+                            value={snapImageWidth}
+                            onChange={(e) => setSnapImageWidth(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        
+
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>تكبير الصورة</span>
+                            <span>{imageScale.toFixed(2)}x</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="1"
+                            max="2.2"
+                            step="0.02"
+                            value={imageScale}
+                            onChange={(e) => setImageScale(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>رفع / خفض النص</span>
+                            <span>{textOffsetY}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="-150"
+                            max="150"
+                            value={textOffsetY}
+                            onChange={(e) => setTextOffsetY(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>تعتيم الطبقة</span>
+                            <span>{overlayStrength}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="70"
+                            value={overlayStrength}
+                            onChange={(e) => setOverlayStrength(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>سطوع الصورة</span>
+                            <span>{overlayBrightness}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="60"
+                            max="120"
+                            value={overlayBrightness}
+                            onChange={(e) => setOverlayBrightness(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>شفافية العلامة</span>
+                            <span>{(watermarkOpacity * 100).toFixed(0)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.2"
+                            max="1"
+                            step="0.05"
+                            value={watermarkOpacity}
+                            onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>حجم العلامة</span>
+                            <span>{watermarkScale.toFixed(2)}x</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.7"
+                            max="1.6"
+                            step="0.05"
+                            value={watermarkScale}
+                            onChange={(e) => setWatermarkScale(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <label className="text-sm font-extrabold text-slate-800">
+                      صورة الخبر والأرشفة
+                    </label>
+
+                    <div className="flex gap-1 rounded-lg bg-slate-200 p-1">
+                      <button
+                        onClick={() => setShowLibrary(false)}
+                        className={`rounded-md px-3 py-1 text-xs font-bold transition ${
+                          !showLibrary
+                            ? "bg-white text-slate-900 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        رفع جديد
+                      </button>
+
+                      <button
+                        onClick={() => setShowLibrary(true)}
+                        className={`rounded-md px-3 py-1 text-xs font-bold transition ${
+                          showLibrary
+                            ? "bg-white text-slate-900 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        المكتبة
+                      </button>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="col-span-3 py-4 text-center text-xs text-slate-400">
-                  {librarySearch.trim().length >= 1
-                    ? "لا توجد نتائج"
-                    : "اكتب اسم الصورة للبحث..."}
+
+                  {!showLibrary ? (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="اسم الصورة للأرشفة"
+                        value={customImageName}
+                        onChange={(e) => setCustomImageName(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+                      />
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={isUploadingImage}
+                        className="block w-full text-sm text-slate-500 file:ml-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-slate-900 file:px-5 file:py-2.5 file:text-sm file:font-bold file:text-white hover:file:bg-slate-800"
+                      />
+
+                      {isUploadingImage && (
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></div>
+                          جاري تجهيز الصورة...
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="ابحث في أرشيف الصور..."
+                        value={librarySearch}
+                        onChange={(e) => handleLibrarySearch(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
+                      />
+
+                      <div className="grid max-h-[160px] grid-cols-3 gap-2 overflow-y-auto p-1">
+                        {libraryResults.length > 0 ? (
+                          libraryResults.map((item) => (
+                            <div
+                              key={item.id}
+                              onClick={() => {
+                                setImageUrl(item.url);
+                                setCustomImageName(item.name || "");
+                                setSelectedImageFile(null);
+                                showNotice(`تم اختيار: ${item.name}`, "info");
+                                setShowLibrary(false);
+                              }}
+                              className="group relative h-20 cursor-pointer overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-amber-500 hover:shadow-lg"
+                            >
+                              <img
+                                src={item.url}
+                                alt={item.name}
+                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                              />
+
+                              <div className="absolute inset-x-0 bottom-0 truncate bg-black/70 p-1 text-[9px] font-bold text-white">
+                                {item.name}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="col-span-3 py-4 text-center text-xs text-slate-400">
+                            {librarySearch.trim().length >= 1
+                              ? "لا توجد نتائج"
+                              : "اكتب اسم الصورة للبحث..."}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* 🔘 أزرار الإجراءات - مع شرط لإظهار التصدير في السناب فقط */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <button
+                    onClick={saveArticle}
+                    disabled={isSavingArticle}
+                    className="rounded-2xl bg-indigo-600 px-6 py-3.5 font-extrabold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    {isSavingArticle ? "جاري الحفظ..." : isEditMode ? "تحديث" : "حفظ"}
+                  </button>
+
+                  {/* ✅ زر التصدير: يظهر فقط في وضع السناب */}
+                  {editorMode === "snap" && (
+                    <button
+                      onClick={prepareExportImage}
+                      disabled={isExporting}
+                      className="rounded-2xl bg-amber-500 px-6 py-3.5 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-60"
+                    >
+                      {isExporting ? "..." : "تصدير"}
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setShowTwitterPanel(!showTwitterPanel)}
+                    className="rounded-2xl bg-black px-6 py-3.5 font-extrabold text-white transition hover:opacity-90"
+                  >
+                    {showTwitterPanel ? "إخفاء X" : "X"}
+                  </button>
+                </div>
+
+                {showTwitterPanel && (
+                  <div className="mt-5 space-y-4 rounded-2xl border-2 border-slate-200 bg-slate-50 p-5">
+                    <div className="flex flex-col items-start gap-4 sm:flex-row">
+                      {imageUrl && (
+                        <img
+                          src={imageUrl}
+                          alt="معاينة"
+                          className="h-24 w-full rounded-xl border border-slate-200 object-cover shadow-sm sm:w-32"
+                        />
+                      )}
+                      <div className="flex-1 space-y-1">
+                        <p className="line-clamp-2 text-sm font-bold text-slate-800">
+                          {title
+                            .trim()
+                            .split(/\s+/)
+                            .map((w, i) => (i === 0 ? `#${w}` : w))
+                            .join(" ")}
+                        </p>
+                        <p className="line-clamp-2 text-xs text-slate-500">
+                          {subTitle || plainBodyPreview}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-slate-500">
+                        الهاشتاقات
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newTagInput}
+                          onChange={(e) => setNewTagInput(e.target.value)}
+                          onKeyDown={handleTagKeyDown}
+                          placeholder="مثال: عاجل، رياضة، المملكة"
+                          className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-black"
+                        />
+                        <button
+                          onClick={addHashtag}
+                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800"
+                        >
+                          إضافة
+                        </button>
+                      </div>
+                    </div>
+
+                    {hashtags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {hashtags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800"
+                          >
+                            #{tag}
+                            <button
+                              onClick={() => removeHashtag(tag)}
+                              className="transition hover:text-amber-900"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-xs font-bold ${
+                            buildTweetText().length > 280
+                              ? "text-red-600"
+                              : "text-emerald-600"
+                          }`}
+                        >
+                          {buildTweetText().length > 280 ? "تجاوز الحد" : "جاهز"}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          ({buildTweetText().length}/280)
+                        </span>
+                      </div>
+                      <button
+                        onClick={publishToX}
+                        disabled={buildTweetText().length > 280}
+                        className="rounded-xl bg-black px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        نشر الآن
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {showExportActions && generatedExportUrl && (
+                  <div className="mt-4 rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-4 backdrop-blur-sm">
+                    <p className="mb-3 text-center text-sm font-bold text-amber-800">
+                      تم تجهيز الصورة بنجاح
+                    </p>
+
+                    <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner">
+                      <img
+                        src={generatedExportUrl}
+                        alt="معاينة التصدير"
+                        className="h-44 w-full object-contain"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={downloadPreparedImage}
+                        className="rounded-xl bg-slate-900 px-4 py-2.5 font-bold text-white transition hover:bg-slate-800"
+                      >
+                        حفظ الصورة
+                      </button>
+                      <button
+                        onClick={sharePreparedImage}
+                        className="rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white transition hover:bg-emerald-700"
+                      >
+                        مشاركة
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-black text-slate-800">
+                  المعاينة الحالية
+                </h2>
+                <span className="rounded-full bg-white px-4 py-2 text-xs font-bold text-slate-500 shadow-sm">
+                  {editorMode === "snap" ? "عرض سناب" : "عرض الخبر"}
+                </span>
+              </div>
+
+              {editorMode === "normal" ? (
+                <div ref={previewRef}>
+                  <NormalPreview
+                    title={title}
+                    subTitle={subTitle}
+                    bodyPreview={plainBodyPreview}
+                    category={category}
+                    source={source}
+                    author={author}
+                    imageUrl={imageUrl}
+                    isBreaking={isBreaking}
+                    isPoem={isPoem}
+                    formatDate={formatDate}
+                    normalImagePositionY={normalImagePositionY}
+                  />
+                </div>
+              ) : (
+                <SnapPreview
+                  previewRef={previewRef}
+                  imageUrl={imageUrl}
+                  snapImageTransform={snapImageTransform}
+                  snapImageWidth={snapImageWidth}
+                  imageScale={imageScale}
+                  overlayBrightness={overlayBrightness}
+                  overlayStrength={overlayStrength}
+                  blurAmount={blurAmount}
+                  blurOpacity={blurOpacity}
+                  blurColor={blurColor}
+                  watermarkOpacity={watermarkOpacity}
+                  watermarkScale={watermarkScale}
+                  textBlockBottom={textBlockBottom}
+                  titleColor={titleColor}
+                  subTitleColor={subTitleColor}
+                  subtitleBgOpacity={subtitleBgOpacity}
+                  subtitleBgColor={subtitleBgColor}
+                  textStrokeStyle={textStrokeStyle}
+                  title={title}
+                  subTitle={subTitle}
+                  isBreaking={isBreaking}
+                  formatDate={formatDate}
+                  isPreparingCleanExport={isPreparingCleanExport}
+                />
               )}
             </div>
           </div>
-        )}
-      </div>
-
-      {/* 🔘 أزرار الإجراءات - مع شرط لإظهار التصدير في السناب فقط */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <button
-          onClick={saveArticle}
-          disabled={isSavingArticle}
-          className="rounded-2xl bg-indigo-600 px-6 py-3.5 font-extrabold text-white transition hover:bg-indigo-700 disabled:opacity-60"
-        >
-          {isSavingArticle ? "جاري الحفظ..." : isEditMode ? "تحديث" : "حفظ"}
-        </button>
-
-        {/* ✅ زر التصدير: يظهر فقط في وضع السناب */}
-        {editorMode === "snap" && (
-          <button
-            onClick={prepareExportImage}
-            disabled={isExporting}
-            className="rounded-2xl bg-amber-500 px-6 py-3.5 font-extrabold text-white transition hover:bg-amber-600 disabled:opacity-60"
-          >
-            {isExporting ? "..." : "تصدير"}
-          </button>
-        )}
-
-        <button
-          onClick={() => setShowTwitterPanel(!showTwitterPanel)}
-          className="rounded-2xl bg-black px-6 py-3.5 font-extrabold text-white transition hover:opacity-90"
-        >
-          {showTwitterPanel ? "إخفاء X" : "X"}
-        </button>
-      </div>
-
-      {showTwitterPanel && (
-        <div className="mt-5 space-y-4 rounded-2xl border-2 border-slate-200 bg-slate-50 p-5">
-          <div className="flex flex-col items-start gap-4 sm:flex-row">
-            {imageUrl && (
-              <img
-                src={imageUrl}
-                alt="معاينة"
-                className="h-24 w-full rounded-xl border border-slate-200 object-cover shadow-sm sm:w-32"
-              />
-            )}
-            <div className="flex-1 space-y-1">
-              <p className="line-clamp-2 text-sm font-bold text-slate-800">
-                {title
-                  .trim()
-                  .split(/\s+/)
-                  .map((w, i) => (i === 0 ? `#${w}` : w))
-                  .join(" ")}
-              </p>
-              <p className="line-clamp-2 text-xs text-slate-500">
-                {subTitle || plainBodyPreview}
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-bold text-slate-500">
-              الهاشتاقات
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newTagInput}
-                onChange={(e) => setNewTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder="مثال: عاجل، رياضة، المملكة"
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-black"
-              />
-              <button
-                onClick={addHashtag}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800"
-              >
-                إضافة
-              </button>
-            </div>
-          </div>
-
-          {hashtags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {hashtags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800"
-                >
-                  #{tag}
-                  <button
-                    onClick={() => removeHashtag(tag)}
-                    className="transition hover:text-amber-900"
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-xs font-bold ${
-                  buildTweetText().length > 280
-                    ? "text-red-600"
-                    : "text-emerald-600"
-                }`}
-              >
-                {buildTweetText().length > 280 ? "تجاوز الحد" : "جاهز"}
-              </span>
-              <span className="text-xs text-slate-400">
-                ({buildTweetText().length}/280)
-              </span>
-            </div>
-            <button
-              onClick={publishToX}
-              disabled={buildTweetText().length > 280}
-              className="rounded-xl bg-black px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              نشر الآن
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showExportActions && generatedExportUrl && (
-        <div className="mt-4 rounded-2xl border-2 border-amber-300 bg-amber-50/70 p-4 backdrop-blur-sm">
-          <p className="mb-3 text-center text-sm font-bold text-amber-800">
-            تم تجهيز الصورة بنجاح
-          </p>
-
-          <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner">
-            <img
-              src={generatedExportUrl}
-              alt="معاينة التصدير"
-              className="h-44 w-full object-contain"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={downloadPreparedImage}
-              className="rounded-xl bg-slate-900 px-4 py-2.5 font-bold text-white transition hover:bg-slate-800"
-            >
-              حفظ الصورة
-            </button>
-            <button
-              onClick={sharePreparedImage}
-              className="rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white transition hover:bg-emerald-700"
-            >
-              مشاركة
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-</div>
         )}
       </div>
     </div>
