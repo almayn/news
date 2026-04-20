@@ -8,14 +8,16 @@ import type { Metadata } from "next";
 interface Article {
   id: string;
   title: string;
-  sub_title?: string;
+  sub_title?: string | null;
   body: string;
-  image_url: string;
+  image_url?: string | null;
+  author_image?: string | null;
+  extra_images?: string[] | null;
   created_at: string;
   category: string;
-  source?: string;
-  author?: string;
-  is_poem?: boolean;
+  source?: string | null;
+  author?: string | null;
+  is_poem?: boolean | null;
 }
 
 export async function generateMetadata({
@@ -50,7 +52,9 @@ export async function generateMetadata({
     "تابع الخبر كاملًا عبر أخبار الماس.";
 
   const image =
-    data.image_url?.trim() || "https://almasyn.com/default-news.jpg";
+    data.image_url?.trim() ||
+    data.author_image?.trim() ||
+    "https://almasyn.com/default-news.jpg";
 
   const url = `https://almasyn.com/news/${id}`;
 
@@ -147,22 +151,21 @@ export default async function NewsDetailsPage({
         <ArticleBackButton />
 
         <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-       {article.image_url && (
-  <div className="relative overflow-hidden">
-    <img
-      src={article.image_url}
-      alt={article.title}
-      className="h-[260px] w-full object-cover md:h-[460px]"
-    />
+          {article.category !== "مقالات" && article.image_url && (
+            <div className="relative overflow-hidden">
+              <img
+                src={article.image_url}
+                alt={article.title}
+                className="h-[260px] w-full object-cover md:h-[460px]"
+              />
 
-    {/* ✅ العلامة المائية */}
-    <img
-      src="https://gjryvqpwncnkpghaiytl.supabase.co/storage/v1/object/public/fonts/almassslogo.png"
-      alt="علامة مائية"
-      className="pointer-events-none absolute bottom-3 left-3 z-20 w-[68px] opacity-75 drop-shadow-xl"
-    />
-  </div>
-)}
+              <img
+                src="https://gjryvqpwncnkpghaiytl.supabase.co/storage/v1/object/public/fonts/almassslogo.png"
+                alt="علامة مائية"
+                className="pointer-events-none absolute bottom-3 left-3 z-20 w-[68px] opacity-75 drop-shadow-xl"
+              />
+            </div>
+          )}
 
           <div className="p-6 md:p-10">
             <div className="mb-5 flex flex-wrap items-center gap-3 text-sm font-black">
@@ -178,22 +181,43 @@ export default async function NewsDetailsPage({
                 {article.source || "أخبار الماس"}
               </span>
 
-              {article.author && (
-                <span className="text-slate-500">✍ {article.author}</span>
-              )}
+              {/* ✅ تم حذف عرض اسم الكاتب من هنا لتجنب التكرار */}
             </div>
 
-           {/* ✅ العنوان الثانوي أولاً (أكبر حجمًا) */}
-{article.sub_title && (
-  <p className="mb-3 text-xl font-black leading-9 text-amber-600 md:text-2xl">
-    {article.sub_title}
-  </p>
-)}
+            {article.category === "مقالات" && (
+              <div className="mb-6 flex items-center gap-4 rounded-2xl border border-[#c8a96b]/20 bg-amber-50/40 p-4">
+                <div className="shrink-0">
+                  {article.author_image ? (
+                    <img
+                      src={article.author_image}
+                      alt={article.author || "صورة الكاتب"}
+                      className="h-16 w-16 rounded-full object-cover border-2 border-[#c8a96b] shadow-sm"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#c8a96b] bg-white text-2xl text-slate-400 shadow-sm">
+                      ✍
+                    </div>
+                  )}
+                </div>
 
-{/* ✅ العنوان الرئيسي ثانياً */}
-<h1 className="mb-6 text-3xl font-black leading-tight text-slate-900 md:text-5xl">
-  {article.title}
-</h1>
+                <div className="min-w-0">
+                  <p className="mb-1 text-xs font-bold text-slate-500">الكاتب</p>
+                  <p className="text-lg font-black text-slate-900">
+                    {article.author || "أخبار الماس"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {article.sub_title && (
+              <p className="mb-3 text-xl font-black leading-9 text-amber-600 md:text-2xl">
+                {article.sub_title}
+              </p>
+            )}
+
+            <h1 className="mb-6 text-3xl font-black leading-tight text-slate-900 md:text-5xl">
+              {article.title}
+            </h1>
 
             <div className="mb-8">
               <AdminEditButton articleId={article.id} />
@@ -205,9 +229,39 @@ export default async function NewsDetailsPage({
               </div>
             ) : (
               <div
-                className="prose prose-lg max-w-none leading-9 text-slate-800 prose-headings:text-slate-900 prose-p:leading-9"
+                className="
+                  prose max-w-none
+                  text-[19px] leading-[2.25] text-slate-700
+                  prose-p:my-0 prose-p:mb-6 prose-p:leading-[2.25]
+                  prose-headings:mb-4 prose-headings:text-slate-900
+                  prose-h2:text-[28px] prose-h3:text-[24px]
+                  prose-strong:text-slate-900
+                  prose-a:text-primary-700
+                  prose-blockquote:border-r-4 prose-blockquote:border-[#c8a96b]
+                  prose-blockquote:pr-4 prose-blockquote:text-slate-600
+                  prose-ul:my-5 prose-ol:my-5
+                  prose-li:my-2 prose-li:leading-[2.1]
+                "
                 dangerouslySetInnerHTML={{ __html: article.body }}
               />
+            )}
+            
+            {article.extra_images && article.extra_images.length > 0 && (
+              <div className="mt-10 space-y-4">
+                <h3 className="text-lg font-black text-slate-900">صور إضافية</h3>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {article.extra_images.map((img, index) => (
+                    <div key={index} className="overflow-hidden rounded-2xl">
+                      <img
+                        src={img}
+                        alt={`صورة ${index + 1}`}
+                        className="h-64 w-full object-cover transition hover:scale-105"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 

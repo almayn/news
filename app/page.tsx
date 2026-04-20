@@ -10,7 +10,8 @@ interface Article {
   title: string;
   sub_title?: string | null;
   body: string;
-  image_url: string;
+  image_url?: string | null;
+  author_image?: string | null;
   created_at: string;
   category: string;
   source?: string | null;
@@ -81,7 +82,7 @@ function HomeContent() {
   }, [news]);
 
   useEffect(() => {
-   if (activeCategory === "عام") {
+    if (activeCategory === "عام") {
       setFilteredNews(regularNews);
     } else {
       setFilteredNews(
@@ -92,7 +93,8 @@ function HomeContent() {
               return Number(!!b.is_pinned) - Number(!!a.is_pinned);
             }
             return (
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
             );
           })
       );
@@ -109,10 +111,10 @@ function HomeContent() {
   const heroArticle = currentItems[0];
   const gridArticles = currentItems.slice(1);
 
- const previousPosts =
-  activeCategory === "عام"
-    ? regularNews.slice(itemsPerPage)
-    : filteredNews.slice(itemsPerPage);
+  const previousPosts =
+    activeCategory === "عام"
+      ? regularNews.slice(itemsPerPage)
+      : filteredNews.slice(itemsPerPage);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -134,89 +136,147 @@ function HomeContent() {
                 </div>
               ) : (
                 <>
-                  {heroArticle && (
-                    <Link
-                      href={`/news/${heroArticle.id}`}
-                      className="mb-8 block overflow-hidden rounded-3xl border border-gray-100 bg-white shadow transition hover:-translate-y-1 hover:shadow-xl"
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-2">
-                        <div className="relative">
-                          <img
-                            src={heroArticle.image_url}
-                            alt={heroArticle.title}
-                            className="h-[220px] w-full object-cover object-center md:h-[380px]"
-                          />
-                          <div className="absolute right-4 top-4 rounded-full bg-primary-600 px-4 py-1 text-sm font-black text-white shadow-lg">
-                            {heroArticle.category}
-                          </div>
-                        </div>
+                 {heroArticle && (
+  <Link
+    href={`/news/${heroArticle.id}`}
+    className="mb-8 block overflow-hidden rounded-3xl border border-gray-100 bg-white shadow transition hover:-translate-y-1 hover:shadow-xl"
+  >
+    <div className="grid grid-cols-1 md:grid-cols-2">
+      <div className="relative overflow-hidden">
+        {heroArticle.category === "مقالات" ? (
+          <div className="flex h-[220px] w-full items-center justify-center bg-white md:h-[380px]">
+            {(heroArticle.author_image || heroArticle.image_url) && (
+              <img
+                src={heroArticle.author_image || heroArticle.image_url || ""}
+                alt={heroArticle.author || heroArticle.title}
+                className="h-28 w-28 rounded-full object-cover border-2 border-[#c8a96b] shadow-sm md:h-36 md:w-36"
+              />
+            )}
+          </div>
+        ) : (
+          heroArticle.image_url && (
+            <img
+              src={heroArticle.image_url}
+              alt={heroArticle.title}
+              className="h-[220px] w-full object-cover object-center md:h-[380px]"
+            />
+          )
+        )}
 
-                        <div className="flex flex-col justify-center p-6 md:p-8">
-                          <span className="mb-2 text-sm font-black text-primary-600">
-                            {new Date(heroArticle.created_at).toLocaleDateString(
-                              "ar-SA"
-                            )}
-                          </span>
+        <div className="absolute right-4 top-4 rounded-full bg-white/90 px-4 py-1 text-sm font-black text-primary-700 shadow-lg">
+          {heroArticle.category}
+        </div>
+      </div>
 
-                          {/* ✅ بعد التعديل */}
-{heroArticle.sub_title && (
-  <p className="mb-2 text-lg font-black text-amber-600">
-    {heroArticle.sub_title}
-  </p>
+      <div className="flex flex-col justify-center p-6 md:p-8">
+        <span className="mb-2 text-sm font-black text-primary-600">
+          {new Date(heroArticle.created_at).toLocaleDateString("ar-SA")}
+        </span>
+
+        {heroArticle.sub_title && (
+          <p className="mb-2 text-lg font-black text-amber-600">
+            {heroArticle.sub_title}
+          </p>
+        )}
+
+        <h2 className="mb-3 text-2xl font-black leading-tight text-slate-900 md:text-3xl">
+          {heroArticle.title}
+        </h2>
+
+        {heroArticle.category === "مقالات" &&
+          (heroArticle.author || heroArticle.source) && (
+            <p className="mb-3 text-sm font-bold text-primary-700">
+              الكاتب: {heroArticle.author || heroArticle.source}
+            </p>
+          )}
+
+        <p className="line-clamp-4 text-sm leading-7 text-slate-600">
+          {heroArticle.body.replace(/<[^>]*>?/gm, "")}
+        </p>
+      </div>
+    </div>
+  </Link>
 )}
-
-<h2 className="mb-3 text-2xl font-black leading-tight text-slate-900 md:text-3xl">
-  {heroArticle.title}
-</h2>
-
-                          <p className="line-clamp-4 text-sm leading-7 text-slate-600">
-                            {heroArticle.body.replace(/<[^>]*>?/gm, "")}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                  )}
 
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-2">
-                    {gridArticles.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={`/news/${item.id}`}
-                        className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow transition hover:-translate-y-1 hover:shadow-xl"
-                      >
-                        <div className="relative">
-                          <img
-                            src={item.image_url}
-                            alt={item.title}
-                            className="h-56 w-full object-cover transition duration-500 group-hover:scale-105"
-                          />
-                          <div className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-black text-primary-700 shadow">
-                            {item.category}
+                    {gridArticles.map((item) =>
+                      item.category === "مقالات" ? (
+                        <Link
+                          key={item.id}
+                          href={`/news/${item.id}`}
+                          className="group overflow-hidden rounded-2xl border border-[#c8a96b]/20 bg-white shadow transition hover:-translate-y-1 hover:shadow-xl"
+                        >
+                          <div className="p-5 text-center">
+                            {(item.author_image || item.image_url) && (
+                              <div className="mb-4 flex justify-center">
+                                <img
+                                  src={item.author_image || item.image_url || ""}
+                                  alt={item.author || item.title}
+                                  className="h-24 w-24 rounded-full object-cover border-2 border-[#c8a96b] shadow-sm"
+                                />
+                              </div>
+                            )}
+
+                            <div className="mb-2 text-xs font-black text-slate-400">
+                              {new Date(item.created_at).toLocaleDateString("ar-SA")}
+                            </div>
+
+                            <h3 className="mb-2 text-xl font-black leading-snug text-slate-900 group-hover:text-primary-700">
+                              {item.title}
+                            </h3>
+
+                            {(item.author || item.source) && (
+                              <p className="mb-3 text-sm font-bold text-primary-700">
+                                الكاتب: {item.author || item.source}
+                              </p>
+                            )}
+
+                            <p className="line-clamp-3 text-sm leading-7 text-slate-600">
+                              {item.body.replace(/<[^>]*>?/gm, "")}
+                            </p>
                           </div>
-                        </div>
-
-                        <div className="p-5">
-                          <div className="mb-2 text-xs font-black text-slate-400">
-                            {new Date(item.created_at).toLocaleDateString("ar-SA")}
+                        </Link>
+                      ) : (
+                        <Link
+                          key={item.id}
+                          href={`/news/${item.id}`}
+                          className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow transition hover:-translate-y-1 hover:shadow-xl"
+                        >
+                          <div className="relative">
+                            {item.image_url && (
+                              <img
+                                src={item.image_url}
+                                alt={item.title}
+                                className="h-56 w-full object-cover transition duration-500 group-hover:scale-105"
+                              />
+                            )}
+                            <div className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-black text-primary-700 shadow">
+                              {item.category}
+                            </div>
                           </div>
 
-                        {/* ✅ بعد التعديل */}
-{item.sub_title && (
-  <p className="mb-2 line-clamp-2 text-base font-black text-amber-600">
-    {item.sub_title}
-  </p>
-)}
+                          <div className="p-5">
+                            <div className="mb-2 text-xs font-black text-slate-400">
+                              {new Date(item.created_at).toLocaleDateString("ar-SA")}
+                            </div>
 
-<h3 className="mb-3 line-clamp-2 text-xl font-black leading-snug text-slate-900 group-hover:text-primary-700">
-  {item.title}
-</h3>
+                            {item.sub_title && (
+                              <p className="mb-2 line-clamp-2 text-base font-black text-amber-600">
+                                {item.sub_title}
+                              </p>
+                            )}
 
-                          <p className="line-clamp-3 text-sm leading-7 text-slate-600">
-                            {item.body.replace(/<[^>]*>?/gm, "")}
-                          </p>
-                        </div>
-                      </Link>
-                    ))}
+                            <h3 className="mb-3 line-clamp-2 text-xl font-black leading-snug text-slate-900 group-hover:text-primary-700">
+                              {item.title}
+                            </h3>
+
+                            <p className="line-clamp-3 text-sm leading-7 text-slate-600">
+                              {item.body.replace(/<[^>]*>?/gm, "")}
+                            </p>
+                          </div>
+                        </Link>
+                      )
+                    )}
                   </div>
 
                   {totalPages > 1 && (
@@ -249,48 +309,52 @@ function HomeContent() {
             </div>
 
             <aside className="space-y-6">
-              
-             {activeCategory === "عام" && (
-  <section className="overflow-hidden rounded-3xl border border-[#c8a96b]/20 bg-white shadow-sm">
-    <div className="bg-gradient-to-r from-[#0f3d75] to-[#14508f] px-4 py-3">
-      <h2 className="text-center text-base font-black text-white">
-        مقالات
-      </h2>
-    </div>
+              {activeCategory === "عام" && (
+                <section className="overflow-hidden rounded-3xl border border-[#c8a96b]/20 bg-white shadow-sm">
+                  <div className="bg-gradient-to-r from-[#0f3d75] to-[#14508f] px-4 py-3">
+                    <h2 className="text-center text-base font-black text-white">
+                      مقالات
+                    </h2>
+                  </div>
 
-    <div className="p-4">
-      {latestArticle ? (
-        <Link href={`/news/${latestArticle.id}`} className="group block">
-          <div className="space-y-3">
-            <h3 className="text-center text-lg font-black leading-8 text-slate-900 transition group-hover:text-primary-700">
-              {latestArticle.title}
-            </h3>
+                  <div className="p-4">
+                    {latestArticle ? (
+                      <Link href={`/news/${latestArticle.id}`} className="group block">
+                        <div className="space-y-3">
+                          <h3 className="text-center text-lg font-black leading-8 text-slate-900 transition group-hover:text-primary-700">
+                            {latestArticle.title}
+                          </h3>
 
-            {latestArticle.image_url && (
-              <div className="overflow-hidden rounded-2xl">
-                <img
-                  src={latestArticle.image_url}
-                  alt={latestArticle.title}
-                  className="h-52 w-full object-cover transition duration-500 group-hover:scale-105"
-                />
-              </div>
-            )}
+                          {(latestArticle.author_image || latestArticle.image_url) && (
+                            <div className="flex justify-center">
+                              <img
+                                src={
+                                  latestArticle.author_image ||
+                                  latestArticle.image_url ||
+                                  ""
+                                }
+                                alt={latestArticle.title}
+                                className="h-24 w-24 rounded-full object-cover border-2 border-[#c8a96b] shadow-sm"
+                              />
+                            </div>
+                          )}
 
-            {(latestArticle.source || latestArticle.author) && (
-              <p className="text-center text-sm font-bold text-primary-700">
-                الكاتب: {latestArticle.source || latestArticle.author}
-              </p>
-            )}
-          </div>
-        </Link>
-      ) : (
-        <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
-          لا توجد مقالات حالياً
-        </div>
-      )}
-    </div>
-  </section>
-)}
+                          {(latestArticle.author || latestArticle.source) && (
+                            <p className="text-center text-sm font-bold text-primary-700">
+                              الكاتب: {latestArticle.author || latestArticle.source}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    ) : (
+                      <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
+                        لا توجد مقالات حالياً
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
               <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
                 <div className="bg-slate-100 px-4 py-3">
                   <h2 className="text-center text-base font-black text-[#0f3d75]">
@@ -300,29 +364,29 @@ function HomeContent() {
 
                 <div className="p-3">
                   {previousPosts.length > 0 ? (
-  <ul className="space-y-2">
-    {previousPosts.slice(0, 6).map((item, index) => (
-      <li key={item.id}>
-        <Link
-          href={`/news/${item.id}`}
-          className="group flex items-start gap-3 rounded-2xl px-3 py-2 transition hover:bg-slate-50"
-        >
-          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0f3d75] text-xs font-black text-white">
-            {index + 1}
-          </span>
+                    <ul className="space-y-2">
+                      {previousPosts.slice(0, 6).map((item, index) => (
+                        <li key={item.id}>
+                          <Link
+                            href={`/news/${item.id}`}
+                            className="group flex items-start gap-3 rounded-2xl px-3 py-2 transition hover:bg-slate-50"
+                          >
+                            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0f3d75] text-xs font-black text-white">
+                              {index + 1}
+                            </span>
 
-          <span className="line-clamp-2 text-sm font-bold leading-6 text-slate-800 transition group-hover:text-[#0f3d75]">
-            {item.title}
-          </span>
-        </Link>
-      </li>
-    ))}
-  </ul>
-) : (
-  <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
-    لا توجد منشورات سابقة في هذا القسم
-  </div>
-)}
+                            <span className="line-clamp-2 text-sm font-bold leading-6 text-slate-800 transition group-hover:text-[#0f3d75]">
+                              {item.title}
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
+                      لا توجد منشورات سابقة في هذا القسم
+                    </div>
+                  )}
                 </div>
               </section>
             </aside>

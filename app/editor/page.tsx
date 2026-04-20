@@ -19,8 +19,10 @@ interface Article {
   title: string;
   sub_title?: string | null;
   body: string;
-  image_url: string;
+  image_url?: string | null;
   image_name?: string | null;
+  author_image?: string | null; // 👈 هذا السطر الجديد
+  extra_images?: string[] | null;
   created_at?: string;
   category: string;
   source?: string | null;
@@ -356,7 +358,8 @@ function EditorPageContent() {
   const [normalImagePositionY, setNormalImagePositionY] = useState(50);
   const [editorMode, setEditorMode] = useState<EditorMode>("normal");
   const [isTextExpanded, setIsTextExpanded] = useState(false);
-
+const [extraImages, setExtraImages] = useState<string[]>([]);
+const [isUploadingExtraImages, setIsUploadingExtraImages] = useState(false);
   const [title, setTitle] = useState("");
   const [subTitle, setSubTitle] = useState("");
   const [body, setBody] = useState("");
@@ -366,7 +369,8 @@ function EditorPageContent() {
   const [imageUrl, setImageUrl] = useState("");
   const [isBreaking, setIsBreaking] = useState(false);
   const [isPoem, setIsPoem] = useState(false);
-
+const [authorImageUrl, setAuthorImageUrl] = useState("");
+const [selectedAuthorImageFile, setSelectedAuthorImageFile] = useState<File | null>(null);
   const [showTwitterPanel, setShowTwitterPanel] = useState(false);
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState("");
@@ -541,11 +545,12 @@ function EditorPageContent() {
     setLibraryResults([]);
     setShowLibrary(false);
     setSelectedImageFile(null);
-
+setAuthorImageUrl("");
+setSelectedAuthorImageFile(null);
     setEditorMode("normal");
     setIsTextExpanded(false);
     setShowTwitterPanel(false);
-
+setExtraImages([]);
     setImageScale(1);
     setImagePositionY(50);
     setImagePositionX(50);
@@ -618,16 +623,18 @@ function EditorPageContent() {
           author: data.author || "",
           image_name: data.image_name || "",
         };
-
-        setTitle(item.title || "");
-        setSubTitle(item.sub_title || "");
-        setBody(item.body || "");
-        setCategory(item.category || "عام");
-        setSource(item.source || "أخبار الماس");
-        setAuthor(item.author || "");
-        setImageUrl(item.image_url || "");
-        setCustomImageName(item.image_name || "");
-        setIsPoem(!!item.is_poem);
+setTitle(item.title || "");
+setSubTitle(item.sub_title || "");
+setBody(item.body || "");
+setCategory(item.category || "عام");
+setSource(item.source || "أخبار الماس");
+setAuthor(item.author || "");
+setImageUrl(item.image_url || "");
+setAuthorImageUrl(item.author_image || "");
+setExtraImages(item.extra_images || []);
+setExtraImages(item.extra_images || []);
+setCustomImageName(item.image_name || "");
+setIsPoem(!!item.is_poem);
       } catch (error) {
         console.error("Fetch article error:", error);
         showNotice("تعذر تحميل بيانات الخبر للتعديل", "error");
@@ -662,7 +669,55 @@ function EditorPageContent() {
       setIsUploadingImage(false);
     }
   };
+  const uploadImageToImgBB = async (file: File) => {
+  const formData = new FormData();
+  formData.append("image", file);
 
+  const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+  if (!apiKey) {
+    throw new Error("مفتاح ImgBB غير موجود");
+  }
+
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json();
+
+  if (!data?.success || !data?.data?.url) {
+    throw new Error("فشل رفع الصورة");
+  }
+
+  return data.data.url as string;
+};
+
+
+
+const removeExtraImage = (indexToRemove: number) => {
+  setExtraImages((prev) => prev.filter((_, index) => index !== indexToRemove));
+};
+const handleAuthorImageUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+    setIsUploadingImage(true);
+    setSelectedAuthorImageFile(file);
+
+    const localPreview = await fileToDataUrl(file);
+    setAuthorImageUrl(localPreview);
+
+    showNotice("تم تجهيز صورة الكاتب", "success");
+  } catch (error) {
+    console.error(error);
+    showNotice("حدث خطأ أثناء تجهيز صورة الكاتب", "error");
+  } finally {
+    setIsUploadingImage(false);
+  }
+};
   const uploadImageAndArchive = async () => {
     if (!selectedImageFile) {
       return {
@@ -713,7 +768,69 @@ function EditorPageContent() {
       imageName: finalImageName,
     };
   };
+const uploadAuthorImage = async () => {
+  if (!selectedAuthorImageFile) {
+    return authorImageUrl.trim() || null;
+  }
 
+  if (!author.trim()) {
+    throw new Error("يرجى كتابة اسم الكاتب أولاً");
+  }
+
+  const formData = new FormData();
+  formData.append("image", selectedAuthorImageFile);
+
+  const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+  if (!apiKey) {
+    throw new Error("مفتاح ImgBB غير موجود");
+  }
+
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json();
+
+  if (!data?.success || !data?.data?.url) {
+    throw new Error("فشل رفع صورة الكاتب");
+  }
+
+  const cleanAuthorName = author.trim().replace(/\s+/g, "-");
+  const imageName = cleanAuthorName;
+
+  const { data: existingImage } = await supabase
+    .from("media_library")
+    .select("id")
+    .eq("name", imageName)
+    .maybeSingle();
+
+  if (existingImage) {
+    const { error: updateError } = await supabase
+      .from("media_library")
+      .update({ url: data.data.url })
+      .eq("name", imageName);
+
+    if (updateError) {
+      throw new Error("فشل تحديث صورة الكاتب في المكتبة");
+    }
+  } else {
+    const { error: insertError } = await supabase.from("media_library").insert([
+      {
+        name: imageName,
+        url: data.data.url,
+      },
+    ]);
+
+    if (insertError) {
+      throw new Error("فشل حفظ صورة الكاتب في المكتبة");
+    }
+  }
+
+  setSelectedAuthorImageFile(null);
+
+  return data.data.url as string;
+};
   const prepareExportImage = async () => {
     if (!previewRef.current && editorMode === "snap") return;
 
@@ -907,55 +1024,101 @@ function EditorPageContent() {
       setIsSavingArticle(false);
     }
   };
+const handleExtraImagesUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
 
+  try {
+    setIsUploadingExtraImages(true);
+
+    const uploadedUrls: string[] = [];
+
+    for (const file of files) {
+      const uploadedUrl = await uploadImageToImgBB(file);
+      uploadedUrls.push(uploadedUrl);
+    }
+
+    setExtraImages((prev) => [...prev, ...uploadedUrls]);
+    showNotice("تمت إضافة الصور الإضافية", "success");
+  } catch (error) {
+    console.error(error);
+    showNotice("تعذر رفع الصور الإضافية", "error");
+  } finally {
+    setIsUploadingExtraImages(false);
+    e.target.value = "";
+  }
+};
   const saveArticle = async () => {
-    if (!title.trim() || !body.trim() || !imageUrl.trim()) {
-      showNotice("يرجى تعبئة العنوان والنص واختيار صورة للخبر", "error");
+  const isArticleCategory = category === "مقالات";
+
+  if (!title.trim() || !body.trim()) {
+    showNotice("يرجى تعبئة العنوان والنص", "error");
+    return;
+  }
+
+  if (isArticleCategory) {
+    if (!author.trim()) {
+      showNotice("يرجى إدخال اسم الكاتب", "error");
       return;
     }
 
-    if (category === "مقالات" && !author.trim()) {
-      showNotice("يرجى إدخال اسم الكاتب عند اختيار قسم المقالات", "error");
+    if (!authorImageUrl.trim()) {
+      showNotice("يرجى اختيار صورة الكاتب", "error");
       return;
     }
-
-    setIsSavingArticle(true);
-
-    try {
-      const uploadResult = await uploadImageAndArchive();
-
-      const payload: Record<string, any> = {
-        title: title.trim(),
-        sub_title: subTitle.trim() || null,
-        body: body.trim(),
-        category,
-        source: source.trim() || "أخبار الماس",
-        author: category === "مقالات" ? author.trim() : null,
-        image_url: uploadResult.uploadedUrl,
-        image_name: uploadResult.imageName,
-        is_poem: isPoem,
-      };
-
-      if (isEditMode && articleId) {
-        const { error } = await supabase
-          .from("news_posts")
-          .update(payload)
-          .eq("id", articleId);
-
-        if (error) throw error;
-        showNotice("تم تحديث الخبر بنجاح", "success");
-      } else {
-        const { error } = await supabase.from("news_posts").insert([payload]);
-        if (error) throw error;
-        showNotice("تم حفظ الخبر بنجاح", "success");
-      }
-    } catch (error: any) {
-      console.error(error);
-      showNotice(error.message || "حدث خطأ أثناء الحفظ", "error");
-    } finally {
-      setIsSavingArticle(false);
+  } else {
+    if (!imageUrl.trim()) {
+      showNotice("يرجى اختيار صورة للخبر", "error");
+      return;
     }
-  };
+  }
+
+  setIsSavingArticle(true);
+
+  try {
+    const uploadResult = !isArticleCategory
+      ? await uploadImageAndArchive()
+      : { uploadedUrl: imageUrl.trim() || null, imageName: customImageName.trim() || null };
+
+    const uploadedAuthorImage =
+      isArticleCategory ? await uploadAuthorImage() : null;
+
+    const payload: Record<string, any> = {
+      title: title.trim(),
+      sub_title: subTitle.trim() || null,
+      body: body.trim(),
+      category,
+      source: source.trim() || "أخبار الماس",
+      author: isArticleCategory ? author.trim() : null,
+      image_url: !isArticleCategory ? uploadResult.uploadedUrl : null,
+      image_name: !isArticleCategory ? uploadResult.imageName : null,
+      author_image: isArticleCategory ? uploadedAuthorImage : null,
+      extra_images: extraImages,
+      is_poem: isPoem,
+    };
+
+    if (isEditMode && articleId) {
+      const { error } = await supabase
+        .from("news_posts")
+        .update(payload)
+        .eq("id", articleId);
+
+      if (error) throw error;
+      showNotice("تم تحديث الخبر بنجاح", "success");
+    } else {
+      const { error } = await supabase.from("news_posts").insert([payload]);
+      if (error) throw error;
+      showNotice("تم حفظ الخبر بنجاح", "success");
+    }
+  } catch (error: any) {
+    console.error(error);
+    showNotice(error.message || "حدث خطأ أثناء الحفظ", "error");
+  } finally {
+    setIsSavingArticle(false);
+  }
+};
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -1237,7 +1400,65 @@ function EditorPageContent() {
                         </div>
                       )}
                     </div>
+<div className="rounded-2xl border border-slate-200 bg-white p-4">
+  <div className="mb-3 flex items-center justify-between">
+    <label className="text-sm font-extrabold text-slate-800">
+      صور إضافية للخبر
+    </label>
 
+    <div className="flex items-center gap-2">
+      <input
+        id="extra-images-upload"
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleExtraImagesUpload}
+        disabled={isUploadingExtraImages}
+        className="hidden"
+      />
+
+      <label
+        htmlFor="extra-images-upload"
+        className={`inline-flex cursor-pointer items-center justify-center rounded-full px-4 py-2 text-sm font-bold text-white transition ${
+          isUploadingExtraImages
+            ? "cursor-not-allowed bg-slate-400"
+            : "bg-emerald-600 hover:bg-emerald-700"
+        }`}
+      >
+        {isUploadingExtraImages ? "جاري الرفع..." : "+ إضافة صور"}
+      </label>
+    </div>
+  </div>
+
+  {extraImages.length > 0 ? (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      {extraImages.map((img, index) => (
+        <div
+          key={`${img}-${index}`}
+          className="relative overflow-hidden rounded-xl border border-slate-200"
+        >
+          <img
+            src={img}
+            alt={`صورة إضافية ${index + 1}`}
+            className="h-28 w-full object-cover"
+          />
+
+          <button
+            type="button"
+            onClick={() => removeExtraImage(index)}
+            className="absolute left-2 top-2 rounded-full bg-red-600 px-2 py-1 text-xs font-bold text-white shadow hover:bg-red-700"
+          >
+            حذف
+          </button>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="rounded-xl bg-slate-50 px-4 py-4 text-center text-sm font-bold text-slate-500">
+      لا توجد صور إضافية
+    </div>
+  )}
+</div>
                     <div>
                       <label className="mb-2 block text-sm font-bold text-slate-700">
                         العنوان الرئيسي
@@ -1294,18 +1515,59 @@ function EditorPageContent() {
                     </div>
 
                     {category === "مقالات" && (
-                      <div>
-                        <label className="mb-2 block text-sm font-bold text-slate-700">
-                          اسم الكاتب
-                        </label>
-                        <input
-                          type="text"
-                          value={author}
-                          onChange={(e) => setAuthor(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
-                        />
-                      </div>
-                    )}
+  <div className="space-y-4 rounded-2xl border border-[#c8a96b]/20 bg-amber-50/30 p-4">
+    <div>
+      <label className="mb-2 block text-sm font-bold text-slate-700">
+        اسم الكاتب
+      </label>
+      <input
+        type="text"
+        value={author}
+        onChange={(e) => setAuthor(e.target.value)}
+        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
+      />
+    </div>
+
+    <div>
+      <label className="mb-2 block text-sm font-bold text-slate-700">
+        صورة الكاتب
+      </label>
+
+      <input
+        id="author-image-upload"
+        type="file"
+        accept="image/*"
+        onChange={handleAuthorImageUpload}
+        disabled={isUploadingImage}
+        className="hidden"
+      />
+
+      <label
+        htmlFor="author-image-upload"
+        className={`inline-flex cursor-pointer items-center justify-center rounded-full px-5 py-2.5 text-sm font-bold text-white transition ${
+          isUploadingImage
+            ? "cursor-not-allowed bg-slate-400"
+            : "bg-[#0f3d75] hover:bg-[#14508f]"
+        }`}
+      >
+        {isUploadingImage ? "جاري تجهيز الصورة..." : "اختيار صورة الكاتب"}
+      </label>
+
+      {authorImageUrl && (
+        <div className="mt-4 flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
+          <img
+            src={authorImageUrl}
+            alt="معاينة صورة الكاتب"
+            className="h-16 w-16 rounded-full object-cover border-2 border-[#c8a96b]"
+          />
+          <div className="text-sm font-bold text-slate-600">
+            معاينة صورة الكاتب
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
@@ -1392,7 +1654,9 @@ function EditorPageContent() {
                         }`}
                       />
                     </div>
+                    
                   </>
+                  
                 )}
 
                 {editorMode === "snap" && (
