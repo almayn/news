@@ -40,6 +40,7 @@ function NormalPreview({
   isPoem,
   formatDate,
   normalImagePositionY,
+  imagePositionX,
 }: {
   title: string;
   subTitle: string;
@@ -52,6 +53,7 @@ function NormalPreview({
   isPoem: boolean;
   formatDate: () => string;
   normalImagePositionY: number;
+  imagePositionX: number;
 }) {
   return (
     <div
@@ -66,7 +68,7 @@ function NormalPreview({
             crossOrigin="anonymous"
             className="h-full w-full object-cover"
             style={{
-              objectPosition: `center ${normalImagePositionY}%`,
+              objectPosition: `${imagePositionX}% ${normalImagePositionY}%`,
             }}
           />
         ) : (
@@ -87,14 +89,24 @@ function NormalPreview({
             className="w-[86px] drop-shadow-2xl"
           />
         </div>
-
+<img
+  src={LOGO_URL}
+  alt="علامة مائية"
+  crossOrigin="anonymous"
+  className="pointer-events-none absolute bottom-3 left-3 z-50 w-[64px] opacity-70 drop-shadow-xl"
+/>
         {isBreaking && (
           <div className="absolute bottom-4 right-4 rounded-xl bg-red-600 px-3 py-1.5 text-sm font-black text-white shadow-xl">
             عاجل
           </div>
         )}
       </div>
-
+<img
+  src={LOGO_URL}
+  alt="علامة مائية"
+  crossOrigin="anonymous"
+  className="pointer-events-none absolute bottom-3 left-3 z-10 w-[64px] opacity-70 drop-shadow-xl"
+/>
       <div className="space-y-4 p-5 md:p-6">
         <div className="flex flex-wrap items-center gap-2 text-xs font-extrabold">
           <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">
@@ -131,12 +143,7 @@ function NormalPreview({
             almayn
           </div>
 
-          <img
-            src={LOGO_URL}
-            alt="علامة مائية"
-            crossOrigin="anonymous"
-            className="w-[78px] opacity-80"
-          />
+       
         </div>
       </div>
     </div>
@@ -204,7 +211,7 @@ function SnapPreview({
           height: "711px",
         }}
       >
-          {imageUrl ? (
+        {imageUrl ? (
           <img
             src={imageUrl}
             alt="خلفية"
@@ -297,7 +304,26 @@ function SnapPreview({
               style={{
                 color: subTitleColor,
                 backgroundColor:
-                  subtitleBgOpacity > 0 ? subtitleBgColor : "transparent",
+                  subtitleBgOpacity > 0
+                    ? (() => {
+                        const opacity = Math.max(
+                          0,
+                          Math.min(1, subtitleBgOpacity / 100)
+                        );
+                        const hex = subtitleBgColor.replace("#", "");
+                        const fullHex =
+                          hex.length === 3
+                            ? hex
+                                .split("")
+                                .map((c) => c + c)
+                                .join("")
+                            : hex;
+                        const r = parseInt(fullHex.slice(0, 2), 16);
+                        const g = parseInt(fullHex.slice(2, 4), 16);
+                        const b = parseInt(fullHex.slice(4, 6), 16);
+                        return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                      })()
+                    : "transparent",
                 padding: subtitleBgOpacity > 0 ? "4px 10px" : undefined,
                 borderRadius: subtitleBgOpacity > 0 ? "10px" : undefined,
                 display: "inline-block",
@@ -1094,95 +1120,153 @@ function EditorPageContent() {
                   )}
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-slate-700">
-                    العنوان الرئيسي
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-lg font-black outline-none transition focus:bg-white"
-                  />
-                </div>
-
-                <div className="-mt-2">
-                  <label className="mb-2 block text-sm font-bold text-slate-700">
-                    العنوان الثانوي
-                  </label>
-                  <input
-                    type="text"
-                    value={subTitle}
-                    onChange={(e) => setSubTitle(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
-                  />
-                </div>
-
                 {editorMode === "normal" && (
                   <>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="mb-4 flex items-center justify-between">
+                        <label className="text-sm font-extrabold text-slate-800">
+                          صورة الخبر والأرشفة
+                        </label>
+
+                        <div className="flex gap-1 rounded-lg bg-slate-200 p-1">
+                          <button
+                            onClick={() => setShowLibrary(false)}
+                            className={`rounded-md px-3 py-1 text-xs font-bold transition ${
+                              !showLibrary
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            رفع جديد
+                          </button>
+
+                          <button
+                            onClick={() => setShowLibrary(true)}
+                            className={`rounded-md px-3 py-1 text-xs font-bold transition ${
+                              showLibrary
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            المكتبة
+                          </button>
+                        </div>
+                      </div>
+
+                      {!showLibrary ? (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            placeholder="اسم الصورة للأرشفة"
+                            value={customImageName}
+                            onChange={(e) => setCustomImageName(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+                          />
+
+                          <input
+                            id="normal-image-upload"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            disabled={isUploadingImage}
+                            className="hidden"
+                          />
+
+                          <label
+                            htmlFor="normal-image-upload"
+                            className={`inline-flex cursor-pointer items-center justify-center rounded-full px-5 py-2.5 text-sm font-bold text-white transition ${
+                              isUploadingImage
+                                ? "cursor-not-allowed bg-slate-400"
+                                : "bg-slate-900 hover:bg-slate-800"
+                            }`}
+                          >
+                            {isUploadingImage ? "جاري تجهيز الصورة..." : "اختيار صورة"}
+                          </label>
+
+                          {selectedImageFile && (
+                            <div className="text-xs font-bold text-slate-500">
+                              الملف المختار: {selectedImageFile.name}
+                            </div>
+                          )}
+
+                          {isUploadingImage && (
+                            <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></div>
+                              جاري تجهيز الصورة...
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            placeholder="ابحث في أرشيف الصور..."
+                            value={librarySearch}
+                            onChange={(e) => handleLibrarySearch(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
+                          />
+
+                          <div className="grid max-h-[160px] grid-cols-3 gap-2 overflow-y-auto p-1">
+                            {libraryResults.length > 0 ? (
+                              libraryResults.map((item) => (
+                                <div
+                                  key={item.id}
+                                  onClick={() => {
+                                    setImageUrl(item.url);
+                                    setCustomImageName(item.name || "");
+                                    setSelectedImageFile(null);
+                                    showNotice(`تم اختيار: ${item.name}`, "info");
+                                    setShowLibrary(false);
+                                  }}
+                                  className="group relative h-20 cursor-pointer overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-amber-500 hover:shadow-lg"
+                                >
+                                  <img
+                                    src={item.url}
+                                    alt={item.name}
+                                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                                  />
+
+                                  <div className="absolute inset-x-0 bottom-0 truncate bg-black/70 p-1 text-[9px] font-bold text-white">
+                                    {item.name}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="col-span-3 py-4 text-center text-xs text-slate-400">
+                                {librarySearch.trim().length >= 1
+                                  ? "لا توجد نتائج"
+                                  : "اكتب اسم الصورة للبحث..."}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <div>
                       <label className="mb-2 block text-sm font-bold text-slate-700">
-                        نص الخبر
+                        العنوان الرئيسي
                       </label>
-
-                      <button
-                        onClick={() => setIsTextExpanded(!isTextExpanded)}
-                        className="mb-2 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 md:hidden"
-                      >
-                        {isTextExpanded
-                          ? "إخفاء النص ▲"
-                          : "اضغط لإظهار مربع الكتابة ▼"}
-                      </button>
-
-                      <textarea
-                        value={body}
-                        onChange={(e) => setBody(e.target.value)}
-                        rows={10}
-                        className={`w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-8 outline-none transition-all duration-300 focus:bg-white ${
-                          isTextExpanded ? "block" : "hidden md:block"
-                        }`}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
-                        <span className="text-sm font-extrabold text-slate-800">
-                          عاجل
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={isBreaking}
-                          onChange={(e) => setIsBreaking(e.target.checked)}
-                          className="h-5 w-5 accent-red-600"
-                        />
-                      </label>
-
-                      <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
-                        <span className="text-sm font-extrabold text-slate-800">
-                          نص شعري
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={isPoem}
-                          onChange={(e) => setIsPoem(e.target.checked)}
-                          className="h-5 w-5 accent-[#c8a96b]"
-                        />
-                      </label>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
-                        <span>تحريك الصورة داخل الخبر فوق / تحت</span>
-                        <span>{normalImagePositionY}%</span>
-                      </div>
                       <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={normalImagePositionY}
-                        onChange={(e) => setNormalImagePositionY(Number(e.target.value))}
-                        className="w-full accent-slate-900"
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-lg font-black outline-none transition focus:bg-white"
                       />
                     </div>
+
+                    <div className="-mt-2">
+                      <label className="mb-2 block text-sm font-bold text-slate-700">
+                        العنوان الثانوي
+                      </label>
+                      <input
+                        type="text"
+                        value={subTitle}
+                        onChange={(e) => setSubTitle(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                       <div>
                         <label className="mb-2 block text-sm font-bold text-slate-700">
@@ -1227,11 +1311,121 @@ function EditorPageContent() {
                         />
                       </div>
                     )}
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
+                        <span className="text-sm font-extrabold text-slate-800">
+                          عاجل
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={isBreaking}
+                          onChange={(e) => setIsBreaking(e.target.checked)}
+                          className="h-5 w-5 accent-red-600"
+                        />
+                      </label>
+
+                      <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
+                        <span className="text-sm font-extrabold text-slate-800">
+                          نص شعري
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={isPoem}
+                          onChange={(e) => setIsPoem(e.target.checked)}
+                          className="h-5 w-5 accent-[#c8a96b]"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>تحريك الصورة يمين / يسار</span>
+                            <span>{imagePositionX}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={imagePositionX}
+                            onChange={(e) => setImagePositionX(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
+                            <span>تحريك الصورة فوق / تحت</span>
+                            <span>{normalImagePositionY}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={normalImagePositionY}
+                            onChange={(e) =>
+                              setNormalImagePositionY(Number(e.target.value))
+                            }
+                            className="w-full accent-slate-900"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-bold text-slate-700">
+                        نص الخبر
+                      </label>
+
+                      <button
+                        onClick={() => setIsTextExpanded(!isTextExpanded)}
+                        className="mb-2 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 md:hidden"
+                      >
+                        {isTextExpanded
+                          ? "إخفاء النص ▲"
+                          : "اضغط لإظهار مربع الكتابة ▼"}
+                      </button>
+
+                      <textarea
+                        value={body}
+                        onChange={(e) => setBody(e.target.value)}
+                        rows={10}
+                        className={`w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-8 outline-none transition-all duration-300 focus:bg-white ${
+                          isTextExpanded ? "block" : "hidden md:block"
+                        }`}
+                      />
+                    </div>
                   </>
                 )}
 
                 {editorMode === "snap" && (
                   <>
+                    <div>
+                      <label className="mb-2 block text-sm font-bold text-slate-700">
+                        العنوان الرئيسي
+                      </label>
+                      <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-lg font-black outline-none transition focus:bg-white"
+                      />
+                    </div>
+
+                    <div className="-mt-2">
+                      <label className="mb-2 block text-sm font-bold text-slate-700">
+                        العنوان الثانوي
+                      </label>
+                      <input
+                        type="text"
+                        value={subTitle}
+                        onChange={(e) => setSubTitle(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 outline-none transition focus:bg-white"
+                      />
+                    </div>
+
                     <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
                       <span className="text-sm font-extrabold text-slate-800">
                         شارة عاجل
@@ -1427,8 +1621,6 @@ function EditorPageContent() {
                           />
                         </div>
 
-                        
-
                         <div>
                           <div className="mb-1 flex justify-between text-xs font-bold text-slate-500">
                             <span>تكبير الصورة</span>
@@ -1523,113 +1715,130 @@ function EditorPageContent() {
                         </div>
                       </div>
                     </div>
-                  </>
-                )}
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="mb-4 flex items-center justify-between">
-                    <label className="text-sm font-extrabold text-slate-800">
-                      صورة الخبر والأرشفة
-                    </label>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="mb-4 flex items-center justify-between">
+                        <label className="text-sm font-extrabold text-slate-800">
+                          صورة الخبر والأرشفة
+                        </label>
 
-                    <div className="flex gap-1 rounded-lg bg-slate-200 p-1">
-                      <button
-                        onClick={() => setShowLibrary(false)}
-                        className={`rounded-md px-3 py-1 text-xs font-bold transition ${
-                          !showLibrary
-                            ? "bg-white text-slate-900 shadow-sm"
-                            : "text-slate-500 hover:text-slate-700"
-                        }`}
-                      >
-                        رفع جديد
-                      </button>
+                        <div className="flex gap-1 rounded-lg bg-slate-200 p-1">
+                          <button
+                            onClick={() => setShowLibrary(false)}
+                            className={`rounded-md px-3 py-1 text-xs font-bold transition ${
+                              !showLibrary
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            رفع جديد
+                          </button>
 
-                      <button
-                        onClick={() => setShowLibrary(true)}
-                        className={`rounded-md px-3 py-1 text-xs font-bold transition ${
-                          showLibrary
-                            ? "bg-white text-slate-900 shadow-sm"
-                            : "text-slate-500 hover:text-slate-700"
-                        }`}
-                      >
-                        المكتبة
-                      </button>
-                    </div>
-                  </div>
+                          <button
+                            onClick={() => setShowLibrary(true)}
+                            className={`rounded-md px-3 py-1 text-xs font-bold transition ${
+                              showLibrary
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            المكتبة
+                          </button>
+                        </div>
+                      </div>
 
-                  {!showLibrary ? (
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="اسم الصورة للأرشفة"
-                        value={customImageName}
-                        onChange={(e) => setCustomImageName(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-                      />
+                      {!showLibrary ? (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            placeholder="اسم الصورة للأرشفة"
+                            value={customImageName}
+                            onChange={(e) => setCustomImageName(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+                          />
 
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        disabled={isUploadingImage}
-                        className="block w-full text-sm text-slate-500 file:ml-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-slate-900 file:px-5 file:py-2.5 file:text-sm file:font-bold file:text-white hover:file:bg-slate-800"
-                      />
+                          <input
+                            id="snap-image-upload"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            disabled={isUploadingImage}
+                            className="hidden"
+                          />
 
-                      {isUploadingImage && (
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></div>
-                          جاري تجهيز الصورة...
+                          <label
+                            htmlFor="snap-image-upload"
+                            className={`inline-flex cursor-pointer items-center justify-center rounded-full px-5 py-2.5 text-sm font-bold text-white transition ${
+                              isUploadingImage
+                                ? "cursor-not-allowed bg-slate-400"
+                                : "bg-slate-900 hover:bg-slate-800"
+                            }`}
+                          >
+                            {isUploadingImage ? "جاري تجهيز الصورة..." : "اختيار صورة"}
+                          </label>
+
+                          {selectedImageFile && (
+                            <div className="text-xs font-bold text-slate-500">
+                              الملف المختار: {selectedImageFile.name}
+                            </div>
+                          )}
+
+                          {isUploadingImage && (
+                            <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></div>
+                              جاري تجهيز الصورة...
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            placeholder="ابحث في أرشيف الصور..."
+                            value={librarySearch}
+                            onChange={(e) => handleLibrarySearch(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
+                          />
+
+                          <div className="grid max-h-[160px] grid-cols-3 gap-2 overflow-y-auto p-1">
+                            {libraryResults.length > 0 ? (
+                              libraryResults.map((item) => (
+                                <div
+                                  key={item.id}
+                                  onClick={() => {
+                                    setImageUrl(item.url);
+                                    setCustomImageName(item.name || "");
+                                    setSelectedImageFile(null);
+                                    showNotice(`تم اختيار: ${item.name}`, "info");
+                                    setShowLibrary(false);
+                                  }}
+                                  className="group relative h-20 cursor-pointer overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-amber-500 hover:shadow-lg"
+                                >
+                                  <img
+                                    src={item.url}
+                                    alt={item.name}
+                                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                                  />
+
+                                  <div className="absolute inset-x-0 bottom-0 truncate bg-black/70 p-1 text-[9px] font-bold text-white">
+                                    {item.name}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="col-span-3 py-4 text-center text-xs text-slate-400">
+                                {librarySearch.trim().length >= 1
+                                  ? "لا توجد نتائج"
+                                  : "اكتب اسم الصورة للبحث..."}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="ابحث في أرشيف الصور..."
-                        value={librarySearch}
-                        onChange={(e) => handleLibrarySearch(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-                      />
+                  </>
+                )}
 
-                      <div className="grid max-h-[160px] grid-cols-3 gap-2 overflow-y-auto p-1">
-                        {libraryResults.length > 0 ? (
-                          libraryResults.map((item) => (
-                            <div
-                              key={item.id}
-                              onClick={() => {
-                                setImageUrl(item.url);
-                                setCustomImageName(item.name || "");
-                                setSelectedImageFile(null);
-                                showNotice(`تم اختيار: ${item.name}`, "info");
-                                setShowLibrary(false);
-                              }}
-                              className="group relative h-20 cursor-pointer overflow-hidden rounded-lg border-2 border-transparent transition-all hover:border-amber-500 hover:shadow-lg"
-                            >
-                              <img
-                                src={item.url}
-                                alt={item.name}
-                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                              />
-
-                              <div className="absolute inset-x-0 bottom-0 truncate bg-black/70 p-1 text-[9px] font-bold text-white">
-                                {item.name}
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="col-span-3 py-4 text-center text-xs text-slate-400">
-                            {librarySearch.trim().length >= 1
-                              ? "لا توجد نتائج"
-                              : "اكتب اسم الصورة للبحث..."}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 🔘 أزرار الإجراءات - مع شرط لإظهار التصدير في السناب فقط */}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <button
                     onClick={saveArticle}
@@ -1639,7 +1848,6 @@ function EditorPageContent() {
                     {isSavingArticle ? "جاري الحفظ..." : isEditMode ? "تحديث" : "حفظ"}
                   </button>
 
-                  {/* ✅ زر التصدير: يظهر فقط في وضع السناب */}
                   {editorMode === "snap" && (
                     <button
                       onClick={prepareExportImage}
@@ -1806,6 +2014,7 @@ function EditorPageContent() {
                     isPoem={isPoem}
                     formatDate={formatDate}
                     normalImagePositionY={normalImagePositionY}
+                    imagePositionX={imagePositionX}
                   />
                 </div>
               ) : (

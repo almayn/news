@@ -5,7 +5,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const LOGO_URL =
-  "https://gjryvqpwncnkpghaiytl.supabase.co/storage/v1/object/public/fonts/almassslogo.png";
+  "https://gjryvqpwncnkpghaiytl.supabase.co/storage/v1/object/public/fonts/almaslogo1.png";
 
 const categories = ["الرئيسية", "عام", "رياضة", "مجتمع", "مقالات"];
 
@@ -34,6 +34,7 @@ function SiteHeaderContent() {
       router.push("/");
       return;
     }
+
     router.push(`/?category=${encodeURIComponent(category)}`);
   };
 
@@ -42,7 +43,6 @@ function SiteHeaderContent() {
     if (!el) return;
 
     const maxScrollLeft = el.scrollWidth - el.clientWidth;
-
     setCanScrollLeft(el.scrollLeft > 4);
     setCanScrollRight(el.scrollLeft < maxScrollLeft - 4);
   };
@@ -80,73 +80,84 @@ function SiteHeaderContent() {
   }, [pathname, searchParams]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#c8a96b]/20 bg-[#0f3d75] shadow-lg">
+    <header className="sticky top-0 z-50 border-b border-[#c8a96b]/25 bg-gradient-to-l from-[#0a2f5c] via-[#0f3d75] to-[#0a2f5c] shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[#e6cc8c]/80 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-row-reverse items-center justify-between py-2 md:relative md:h-24 md:flex-row md:py-0">
-          <div className="text-[11px] font-bold text-blue-100 md:absolute md:left-0 md:top-1/2 md:-translate-y-1/2 md:text-sm">
-            {todayText}
-          </div>
+       <div className="relative h-[74px] md:h-[82px]">
+  <div className="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-100/95 md:text-sm">
+    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2.5 py-1.5 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] md:px-3 md:py-1.5">
+      {todayText}
+    </span>
+  </div>
 
-          <Link
-            href="/"
-            className="md:absolute md:right-0 md:top-1/2 md:-translate-y-1/2"
-          >
-            <img
-              src={LOGO_URL}
-              alt="الماس"
-              className="h-14 w-auto object-contain drop-shadow-md transition-transform md:h-32 md:drop-shadow-[0_12px_30px_rgba(0,0,0,0.55)]"
-            />
-          </Link>
-        </div>
+  <div className="absolute right-0 top-1/2 -translate-y-1/2">
+    <Link
+      href="/"
+      className="group relative inline-flex items-center justify-center overflow-visible"
+      aria-label="العودة للرئيسية"
+    >
+      <span className="pointer-events-none absolute inset-0 rounded-full bg-[#c8a96b]/10 blur-2xl transition duration-300 group-hover:bg-[#c8a96b]/20" />
 
+      <img
+        src={LOGO_URL}
+        alt="الماس"
+        className="relative h-[38px] w-auto object-contain drop-shadow-[0_6px_12px_rgba(0,0,0,0.22)] transition-transform duration-300 group-hover:scale-[1.02] md:h-[46px]"
+      />
+    </Link>
+  </div>
+</div>
         <div className="pb-3 md:pb-4">
-          <div className="relative flex items-center justify-center">
-            {canScrollRight && (
-              <button
-                type="button"
-                onClick={() => scrollByAmount("right")}
-                className="absolute right-0 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-[#0f3d75] text-white shadow-md transition hover:bg-[#14508f]"
-                aria-label="عرض المزيد من التصنيفات"
-              >
-                ❮
-              </button>
-            )}
+          <div className="rounded-[24px] border border-white/10 bg-white/8 px-2 py-2 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="relative flex items-center justify-center">
+              {canScrollRight && (
+                <button
+                  type="button"
+                  onClick={() => scrollByAmount("right")}
+                  className="absolute right-0 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-[#0b3566] text-white shadow-md transition hover:bg-[#14508f]"
+                  aria-label="عرض المزيد من التصنيفات"
+                >
+                  ❮
+                </button>
+              )}
 
-            {canScrollLeft && (
-              <button
-                type="button"
-                onClick={() => scrollByAmount("left")}
-                className="absolute left-0 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-[#0f3d75] text-white shadow-md transition hover:bg-[#14508f]"
-                aria-label="العودة للتصنيفات السابقة"
-              >
-                ❯
-              </button>
-            )}
+              {canScrollLeft && (
+                <button
+                  type="button"
+                  onClick={() => scrollByAmount("left")}
+                  className="absolute left-0 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-[#0b3566] text-white shadow-md transition hover:bg-[#14508f]"
+                  aria-label="العودة للتصنيفات السابقة"
+                >
+                  ❯
+                </button>
+              )}
 
-            <div className="w-full overflow-hidden px-1 md:mx-10 md:px-0">
-              <ul
-                ref={scrollRef}
-                className="hide-scrollbar flex items-center justify-center gap-2 overflow-x-auto scroll-smooth px-1"
-              >
-                {categories.map((cat) => {
-                  const isActive = activeCategory === cat;
+              <div className="w-full overflow-hidden px-1 md:mx-10 md:px-0">
+                <ul
+                  ref={scrollRef}
+                  className="hide-scrollbar flex items-center justify-center gap-2 overflow-x-auto scroll-smooth px-1"
+                >
+                  {categories.map((cat) => {
+                    const isActive = activeCategory === cat;
 
-                  return (
-                    <li key={cat} className="shrink-0">
-                      <button
-                        onClick={() => handleCategoryClick(cat)}
-                        className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-black transition-all duration-300 md:px-6 md:py-2 md:text-sm ${
-                          isActive
-                            ? "scale-105 bg-gradient-to-r from-[#c8a96b] to-[#b89355] text-[#0f3d75] shadow-[0_6px_20px_rgba(200,169,107,0.45)]"
-                            : "border border-white/10 bg-white/10 text-white hover:border-[#c8a96b]/40 hover:bg-[#c8a96b]/20"
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+                    return (
+                      <li key={cat} className="shrink-0">
+                        <button
+                          onClick={() => handleCategoryClick(cat)}
+                          className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-black transition-all duration-300 md:px-6 md:py-2 md:text-sm ${
+                            isActive
+                              ? "scale-[1.03] bg-gradient-to-r from-[#d7b778] via-[#c8a96b] to-[#b89355] text-[#0f3d75] shadow-[0_8px_22px_rgba(200,169,107,0.38)]"
+                              : "border border-white/10 bg-white/10 text-white hover:border-[#c8a96b]/40 hover:bg-[#c8a96b]/18"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -157,7 +168,7 @@ function SiteHeaderContent() {
 
 export default function SiteHeader() {
   return (
-    <Suspense fallback={<div className="h-[110px] bg-[#0f3d75]" />}>
+    <Suspense fallback={<div className="h-[118px] bg-[#0f3d75]" />}>
       <SiteHeaderContent />
     </Suspense>
   );

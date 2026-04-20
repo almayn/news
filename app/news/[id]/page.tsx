@@ -147,13 +147,22 @@ export default async function NewsDetailsPage({
         <ArticleBackButton />
 
         <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          {article.image_url && (
-            <img
-              src={article.image_url}
-              alt={article.title}
-              className="h-[260px] w-full object-cover md:h-[460px]"
-            />
-          )}
+       {article.image_url && (
+  <div className="relative overflow-hidden">
+    <img
+      src={article.image_url}
+      alt={article.title}
+      className="h-[260px] w-full object-cover md:h-[460px]"
+    />
+
+    {/* ✅ العلامة المائية */}
+    <img
+      src="https://gjryvqpwncnkpghaiytl.supabase.co/storage/v1/object/public/fonts/almassslogo.png"
+      alt="علامة مائية"
+      className="pointer-events-none absolute bottom-3 left-3 z-20 w-[68px] opacity-75 drop-shadow-xl"
+    />
+  </div>
+)}
 
           <div className="p-6 md:p-10">
             <div className="mb-5 flex flex-wrap items-center gap-3 text-sm font-black">
