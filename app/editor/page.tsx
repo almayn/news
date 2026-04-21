@@ -28,6 +28,7 @@ interface Article {
   source?: string | null;
   author?: string | null;
   is_poem?: boolean | null;
+  table_html?: string | null;
 }
 
 function NormalPreview({
@@ -43,6 +44,7 @@ function NormalPreview({
   formatDate,
   normalImagePositionY,
   imagePositionX,
+  tableHtml,
 }: {
   title: string;
   subTitle: string;
@@ -56,6 +58,7 @@ function NormalPreview({
   formatDate: () => string;
   normalImagePositionY: number;
   imagePositionX: number;
+  tableHtml: string;
 }) {
   return (
     <div
@@ -134,7 +137,22 @@ function NormalPreview({
         >
           {bodyPreview || "سيظهر نص الخبر هنا في المعاينة العادية."}
         </div>
+        <div
+          className={`text-[15px] leading-8 text-slate-700 ${
+            isPoem ? "whitespace-pre-wrap text-center" : "whitespace-pre-wrap"
+          }`}
+        >
+          {bodyPreview || "سيظهر نص الخبر هنا في المعاينة العادية."}
+        </div>
 
+        {tableHtml.trim() && (
+          <div
+            className="article-table-wrap mt-4"
+            dangerouslySetInnerHTML={{ __html: tableHtml }}
+          />
+        )}
+
+       
         <div className="flex items-center justify-between border-t border-slate-200 pt-4">
           <div className="text-sm font-black uppercase tracking-[0.08em] text-slate-800">
             almayn
@@ -146,7 +164,27 @@ function NormalPreview({
     </div>
   );
 }
+function cleanTableHtml(html: string) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
 
+  const table = doc.querySelector("table");
+  if (!table) return "";
+
+  table.querySelectorAll("*").forEach((el) => {
+    el.removeAttribute("style");
+    el.removeAttribute("class");
+    el.removeAttribute("width");
+    el.removeAttribute("height");
+    el.removeAttribute("dir");
+    el.removeAttribute("align");
+  });
+
+  table.removeAttribute("dir");
+  table.setAttribute("dir", "rtl");
+
+  return table.outerHTML;
+}
 function SnapPreview({
   previewRef,
   imageUrl,
@@ -405,7 +443,7 @@ const [selectedAuthorImageFile, setSelectedAuthorImageFile] = useState<File | nu
   const [overlayBrightness, setOverlayBrightness] = useState(92);
   const [subtitleBgOpacity, setSubtitleBgOpacity] = useState(0);
   const [subtitleBgColor, setSubtitleBgColor] = useState("#000000");
-
+const [tableHtml, setTableHtml] = useState("");
   const [titleColor, setTitleColor] = useState("#ffffff");
   const [subTitleColor, setSubTitleColor] = useState(GOLD);
   const [titleStrokeColor, setTitleStrokeColor] = useState("#000000");
@@ -551,6 +589,7 @@ setSelectedAuthorImageFile(null);
     setIsTextExpanded(false);
     setShowTwitterPanel(false);
 setExtraImages([]);
+setTableHtml("");
     setImageScale(1);
     setImagePositionY(50);
     setImagePositionX(50);
@@ -632,9 +671,10 @@ setAuthor(item.author || "");
 setImageUrl(item.image_url || "");
 setAuthorImageUrl(item.author_image || "");
 setExtraImages(item.extra_images || []);
-setExtraImages(item.extra_images || []);
 setCustomImageName(item.image_name || "");
+
 setIsPoem(!!item.is_poem);
+setTableHtml(item.table_html || "");
       } catch (error) {
         console.error("Fetch article error:", error);
         showNotice("تعذر تحميل بيانات الخبر للتعديل", "error");
@@ -1096,6 +1136,7 @@ const handleExtraImagesUpload = async (
       image_name: !isArticleCategory ? uploadResult.imageName : null,
       author_image: isArticleCategory ? uploadedAuthorImage : null,
       extra_images: extraImages,
+      table_html: tableHtml.trim() || null,
       is_poem: isPoem,
     };
 
@@ -1631,30 +1672,45 @@ const handleExtraImagesUpload = async (
                       </div>
                     </div>
 
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-slate-700">
-                        نص الخبر
-                      </label>
+                   <div>
+  <label className="mb-2 block text-sm font-bold text-slate-700">
+    نص الخبر
+  </label>
 
-                      <button
-                        onClick={() => setIsTextExpanded(!isTextExpanded)}
-                        className="mb-2 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 md:hidden"
-                      >
-                        {isTextExpanded
-                          ? "إخفاء النص ▲"
-                          : "اضغط لإظهار مربع الكتابة ▼"}
-                      </button>
+  {/* 👇 النص أول */}
+  <textarea
+    value={body}
+    onChange={(e) => setBody(e.target.value)}
+    rows={10}
+    className={`w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-8 outline-none transition-all duration-300 focus:bg-white ${
+      isTextExpanded ? "block" : "hidden md:block"
+    }`}
+  />
 
-                      <textarea
-                        value={body}
-                        onChange={(e) => setBody(e.target.value)}
-                        rows={10}
-                        className={`w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-8 outline-none transition-all duration-300 focus:bg-white ${
-                          isTextExpanded ? "block" : "hidden md:block"
-                        }`}
-                      />
-                    </div>
-                    
+  {/* 👇 ثم الجدول تحت النص */}
+  <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+    <label className="mb-2 block text-sm font-extrabold text-slate-800">
+      جدول داخل الخبر (اختياري)
+    </label>
+
+    <textarea
+      value={tableHtml}
+      onChange={(e) => setTableHtml(e.target.value)}
+      onPaste={(e) => {
+        const html = e.clipboardData.getData("text/html");
+
+        if (html && html.includes("<table")) {
+          e.preventDefault();
+          const cleaned = cleanTableHtml(html);
+          setTableHtml(cleaned);
+        }
+      }}
+      placeholder="الصق جدول من Excel أو Word هنا"
+      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none transition focus:bg-white"
+      rows={6}
+    />
+  </div>
+</div>
                   </>
                   
                 )}
@@ -1671,6 +1727,8 @@ const handleExtraImagesUpload = async (
                         onChange={(e) => setTitle(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-lg font-black outline-none transition focus:bg-white"
                       />
+                      
+
                     </div>
 
                     <div className="-mt-2">
@@ -2274,6 +2332,7 @@ const handleExtraImagesUpload = async (
                     formatDate={formatDate}
                     normalImagePositionY={normalImagePositionY}
                     imagePositionX={imagePositionX}
+                    tableHtml={tableHtml}
                   />
                 </div>
               ) : (

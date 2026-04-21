@@ -18,6 +18,7 @@ interface Article {
   source?: string | null;
   author?: string | null;
   is_poem?: boolean | null;
+  table_html?: string | null;
 }
 
 export async function generateMetadata({
@@ -114,7 +115,16 @@ function renderPoem(body: string) {
     </div>
   );
 }
+function renderArticleTable(tableHtml?: string | null) {
+  if (!tableHtml || !tableHtml.trim()) return null;
 
+  return (
+    <div
+      className="article-table-wrap"
+      dangerouslySetInnerHTML={{ __html: tableHtml }}
+    />
+  );
+}
 async function getArticle(id: string): Promise<Article | null> {
   const { data, error } = await supabase
     .from("news_posts")
@@ -223,28 +233,34 @@ export default async function NewsDetailsPage({
               <AdminEditButton articleId={article.id} />
             </div>
 
-            {article.is_poem ? (
-              <div className="poem-wrapper">
-                {renderPoem(article.body)}
-              </div>
-            ) : (
-              <div
-                className="
-                  prose max-w-none
-                  text-[19px] leading-[2.25] text-slate-700
-                  prose-p:my-0 prose-p:mb-6 prose-p:leading-[2.25]
-                  prose-headings:mb-4 prose-headings:text-slate-900
-                  prose-h2:text-[28px] prose-h3:text-[24px]
-                  prose-strong:text-slate-900
-                  prose-a:text-primary-700
-                  prose-blockquote:border-r-4 prose-blockquote:border-[#c8a96b]
-                  prose-blockquote:pr-4 prose-blockquote:text-slate-600
-                  prose-ul:my-5 prose-ol:my-5
-                  prose-li:my-2 prose-li:leading-[2.1]
-                "
-                dangerouslySetInnerHTML={{ __html: article.body }}
-              />
-            )}
+    {article.is_poem ? (
+  <div className="poem-wrapper">
+    {renderPoem(article.body)}
+  </div>
+) : (
+  <>
+    <div
+      className="
+        prose max-w-none
+        whitespace-pre-wrap
+        text-[20px] md:text-[21px] leading-[1.8] md:leading-[2] text-slate-800
+        prose-p:mb-6
+        prose-headings:text-slate-900 prose-headings:font-black
+        prose-h2:text-3xl prose-h2:mt-10 prose-h2:mb-5 prose-h2:border-r-4 prose-h2:border-amber-500 prose-h2:pr-4
+        prose-h3:text-2xl prose-h3:mt-8
+        prose-a:text-blue-700 prose-a:font-bold prose-a:underline-offset-8
+        prose-blockquote:border-r-4 prose-blockquote:border-[#c8a96b]
+        prose-blockquote:bg-slate-50 prose-blockquote:pr-6 prose-blockquote:py-2
+        prose-blockquote:text-slate-700 prose-blockquote:not-italic
+        prose-li:my-2 prose-strong:text-slate-950
+      "
+      dangerouslySetInnerHTML={{ __html: article.body }}
+    />
+
+    {renderArticleTable(article.table_html)}
+  </>
+)}
+
             
             {article.extra_images && article.extra_images.length > 0 && (
               <div className="mt-10 space-y-4">
