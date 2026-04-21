@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -18,6 +19,15 @@
     --foreground: #ededed;
   }
 }
+
+/* ====== BASE ====== */
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -30,22 +40,22 @@
 /* ====== POEM STYLES ====== */
 
 .poem-wrapper {
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 /* كل بيت */
 .poem-line-block {
-  margin: 0;
+  margin: 0 0 18px;
   padding: 0;
 }
 
-/* صف البيت - تعديل ليصبح عمودياً مثل الجوال */
+/* صف البيت */
 .poem-row {
-  display: block; /* تغيير من flex إلى block ليأخذ الشطر كامل السطر */
+  display: block;
   width: 100%;
-  max-width: 600px; /* يمكنك التحكم في عرض القصيدة الكلي هنا */
+  max-width: 720px;
   margin: 0 auto;
-  padding: 10px 0;
+  padding: 0;
 }
 
 /* الشطر */
@@ -53,43 +63,61 @@
   display: block;
   width: 100%;
   font-size: 1.125rem;
-  line-height: 1.8; 
+  line-height: 2;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  text-align: center !important;
 }
 
 /* المحاذاة */
 .shatr.sadr {
-  text-align: right;
+  text-align: center !important;
 }
 
 .shatr.ajuz {
-  text-align: left;
-  margin-top: 4px; /* مسافة بسيطة بين الصدر والعجز */
+  text-align: center !important;
+  margin-top: 4px;
 }
 
 /* ====== MOBILE ====== */
 @media (max-width: 768px) {
+  .poem-wrapper {
+    margin-top: 6px;
+  }
+
+  .poem-line-block {
+    margin: 0 0 16px;
+  }
+
+  .poem-row {
+    max-width: 100%;
+    padding: 0;
+  }
+
   .shatr {
     font-size: 1rem;
-    line-height: 1.6;
+    line-height: 1.9;
+    text-align: center !important;
+  }
+
+  .shatr.ajuz {
+    margin-top: 2px;
   }
 }
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-/* أضف هذا أسفل ملف globals.css */
+
+/* ===== النصوص داخل المقال ===== */
 
 .prose {
   word-break: break-word; /* منع خروج الكلمات الطويلة عن الإطار */
-  text-align: justify;    /* جعل النص متساوي الأطراف مثل الصحف */
-  text-justify: inter-word;
+  text-align: right; /* أفضل للعربية وخصوصًا في سفاري */
+  text-justify: auto;
 }
 
-/* في الشاشات الصغيرة يفضل المحاذاة لليمين بدلاً من التساوي */
+/* في الشاشات الصغيرة */
 @media (max-width: 768px) {
   .prose {
     text-align: right;
@@ -102,7 +130,9 @@ body {
   margin: 2rem auto;
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
+
 /* ===== جدول الخبر المطور - أخبار الماس ===== */
+
 .article-table-wrap {
   width: 100%;
   margin: 25px 0;
@@ -110,18 +140,21 @@ body {
   -webkit-overflow-scrolling: touch;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
+  direction: rtl;
 }
 
 .article-table-wrap table {
-  width: auto;               /* 👈 الجدول يأخذ عرض المحتوى فقط */
-  max-width: 100%;           /* 👈 يمنع تجاوز عرض الحاوية */
-  min-width: auto;           /* 👈 إلغاء الحد الأدنى 400px */
+  width: auto; /* الجدول يأخذ عرض المحتوى فقط */
+  max-width: 100%; /* يمنع تجاوز عرض الحاوية */
+  min-width: auto; /* إلغاء الحد الأدنى 400px */
   border-collapse: collapse;
   background: #fff;
-  table-layout: auto;        /* 👈 مهم جدًا لتوزيع العرض ديناميكيًا حسب النص */
+  table-layout: auto; /* مهم جدًا لتوزيع العرض ديناميكيًا حسب النص */
+  direction: rtl;
+  unicode-bidi: embed;
 }
 
-/* 👇 تحسين بصري للرأس */
+/* تحسين بصري للرأس */
 .article-table-wrap thead {
   background: linear-gradient(90deg, #0f172a, #1e3a5f);
   color: #fff;
@@ -133,27 +166,28 @@ body {
   text-align: center;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
+  direction: rtl;
 }
 
-/* 👇 عمود الدولة */
+/* عمود الدولة */
 .article-table-wrap th:nth-child(2),
 .article-table-wrap td:nth-child(2) {
   text-align: right;
   font-weight: 700;
-  white-space: nowrap;       /* 👈 يمنع التفاف النص ليأخذ عرضه الطبيعي */
+  white-space: nowrap;
 }
 
-/* 👇 عمود الرقم */
+/* عمود الرقم */
 .article-table-wrap th:first-child,
 .article-table-wrap td:first-child {
   color: #94a3b8;
   font-size: 0.8rem;
   padding-left: 4px;
   padding-right: 4px;
-  white-space: nowrap;       /* 👈 الرقم ما يتكسر */
+  white-space: nowrap;
 }
 
-/* 👇 العناوين */
+/* العناوين */
 .article-table-wrap th {
   font-size: 0.85rem;
   font-weight: 800;
@@ -161,12 +195,12 @@ body {
   white-space: nowrap;
 }
 
-/* 👇 البيانات */
+/* البيانات */
 .article-table-wrap td {
   font-size: 0.9rem;
   color: #1e293b;
   font-variant-numeric: tabular-nums;
-  width: 1%;                 /* 👈 خدعة CSS: تجبر العمود على التقلص لأطول كلمة/نص فيه */
+  width: 1%;
 }
 
 /* سطر سطر */
@@ -195,21 +229,5 @@ body {
     font-size: 0.8rem;
   }
 
-  /* 👈 تم حذف قاعدة width: 36% عشان الأعمدة تتقلص تلقائيًا حسب النص */
-}
-.article-table-wrap {
-  direction: rtl;
-}
-
-.article-table-wrap table {
-  direction: rtl;
-}
-
-.article-table-wrap th,
-.article-table-wrap td {
-  direction: rtl;
-}
-.article-table-wrap table {
-  direction: rtl;
-  unicode-bidi: embed;
+  /* تم حذف قاعدة width: 36% سابقًا، ونترك الأعمدة تتقلص تلقائيًا حسب النص */
 }

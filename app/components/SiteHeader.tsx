@@ -20,7 +20,8 @@ function SiteHeaderContent() {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
 
   const categoryFromUrl = searchParams.get("category");
-const activeCategory = pathname === "/" ? categoryFromUrl || "عام" : "";
+  const activeCategory = pathname === "/" ? categoryFromUrl || "عام" : "";
+  const isOccasionsPage = pathname === "/occasions";
 
   const todayText = new Date().toLocaleDateString("ar-SA", {
     weekday: "long",
@@ -29,14 +30,14 @@ const activeCategory = pathname === "/" ? categoryFromUrl || "عام" : "";
     day: "numeric",
   });
 
- const handleCategoryClick = (category: string) => {
-  if (category === "عام") {
-    router.push("/");
-    return;
-  }
+  const handleCategoryClick = (category: string) => {
+    if (category === "عام") {
+      router.push("/");
+      return;
+    }
 
-  router.push(`/?category=${encodeURIComponent(category)}`);
-};
+    router.push(`/?category=${encodeURIComponent(category)}`);
+  };
 
   const updateScrollState = () => {
     const el = scrollRef.current;
@@ -85,30 +86,46 @@ const activeCategory = pathname === "/" ? categoryFromUrl || "عام" : "";
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-       <div className="relative h-[74px] md:h-[82px]">
-  <div className="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-100/95 md:text-sm">
-    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2.5 py-1.5 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] md:px-3 md:py-1.5">
-      {todayText}
-    </span>
-  </div>
+        <div className="relative h-[74px] md:h-[82px]">
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-100/95 md:text-sm">
+            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2.5 py-1.5 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] md:px-3 md:py-1.5">
+              {todayText}
+            </span>
+          </div>
 
-  <div className="absolute right-0 top-1/2 -translate-y-1/2">
-    <Link
-      href="/"
-      className="group relative inline-flex items-center justify-center overflow-visible"
-      aria-label="العودة للرئيسية"
-    >
-      <span className="pointer-events-none absolute inset-0 rounded-full bg-[#c8a96b]/10 blur-2xl transition duration-300 group-hover:bg-[#c8a96b]/20" />
+          <div className="absolute right-0 top-1/2 -translate-y-1/2">
+            <Link
+              href="/"
+              className="group relative inline-flex items-center justify-center overflow-visible"
+              aria-label="العودة للرئيسية"
+            >
+              <span className="pointer-events-none absolute inset-0 rounded-full bg-[#c8a96b]/10 blur-2xl transition duration-300 group-hover:bg-[#c8a96b]/20" />
 
-      <img
-        src={LOGO_URL}
-        alt="الماس"
-        className="relative h-[38px] w-auto object-contain drop-shadow-[0_6px_12px_rgba(0,0,0,0.22)] transition-transform duration-300 group-hover:scale-[1.02] md:h-[46px]"
-      />
-    </Link>
-  </div>
-</div>
-        <div className="pb-3 md:pb-4">
+              <img
+                src={LOGO_URL}
+                alt="الماس"
+                className="relative h-[38px] w-auto object-contain drop-shadow-[0_6px_12px_rgba(0,0,0,0.22)] transition-transform duration-300 group-hover:scale-[1.02] md:h-[46px]"
+              />
+            </Link>
+          </div>
+        </div>
+
+        <div className="pb-3 md:pb-4 space-y-2">
+          <div className="flex justify-center">
+            <div className="rounded-full border border-white/10 bg-white/7 px-2 py-1.5 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <Link
+                href="/occasions"
+                className={`inline-flex items-center rounded-full px-4 py-1.5 text-[11px] font-black transition-all duration-300 md:px-5 md:py-2 md:text-xs ${
+                  isOccasionsPage
+                    ? "scale-[1.03] bg-gradient-to-r from-[#d7b778] via-[#c8a96b] to-[#b89355] text-[#0f3d75] shadow-[0_8px_22px_rgba(200,169,107,0.32)]"
+                    : "border border-white/10 bg-white/10 text-white hover:border-[#c8a96b]/40 hover:bg-[#c8a96b]/18"
+                }`}
+              >
+                مناسبات
+              </Link>
+            </div>
+          </div>
+
           <div className="rounded-[24px] border border-white/10 bg-white/8 px-2 py-2 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
             <div className="relative flex items-center justify-center">
               {canScrollRight && (
