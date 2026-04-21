@@ -106,8 +106,8 @@ body {
 
   .poem-sadr,
   .poem-ajuz {
-    width: 82%;
-    font-size: 1rem;
+    width: 98%;
+  font-size: 1.25rem;
     line-height: 1.9;
   }
 }
