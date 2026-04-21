@@ -38,77 +38,79 @@ body {
 }
 
 /* ====== POEM STYLES ====== */
+/* ====== POEM STYLES ====== */
 
 .poem-wrapper {
   margin-top: 8px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-/* كل بيت */
 .poem-line-block {
-  margin: 0 0 18px;
+  width: min(100%, 760px);
+  margin: 0 0 22px;
   padding: 0;
 }
 
-/* صف البيت */
-.poem-row {
+.poem-sadr,
+.poem-ajuz {
   display: block;
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 0;
-}
-
-/* الشطر */
-.shatr {
-  display: block;
-  width: 100%;
-  font-size: 1.125rem;
+  width: 66%;
+  font-size: 1.18rem;
   line-height: 2;
   font-weight: 700;
   color: #0f172a;
-  margin: 0;
   white-space: normal;
   word-break: normal;
   overflow-wrap: break-word;
-  text-align: center !important;
+  margin: 0 auto;
 }
 
-/* المحاذاة */
-.shatr.sadr {
-  text-align: center !important;
+/* الصدر: يبدأ من نفس الحد */
+.poem-sadr {
+  text-align: right;
 }
 
-.shatr.ajuz {
-  text-align: center !important;
-  margin-top: 4px;
+/* العجز: ينتهي عند نفس الحد */
+.poem-ajuz {
+  text-align: left;
+  margin-top: 2px;
 }
 
-/* ====== MOBILE ====== */
+/* تابلت */
+@media (max-width: 1024px) {
+  .poem-line-block {
+    width: min(100%, 680px);
+  }
+
+  .poem-sadr,
+  .poem-ajuz {
+    width: 70%;
+    font-size: 1.06rem;
+    line-height: 1.95;
+  }
+}
+
+/* جوال */
 @media (max-width: 768px) {
   .poem-wrapper {
     margin-top: 6px;
   }
 
   .poem-line-block {
-    margin: 0 0 16px;
+    width: min(100%, 92vw);
+    margin: 0 0 18px;
   }
 
-  .poem-row {
-    max-width: 100%;
-    padding: 0;
-  }
-
-  .shatr {
+  .poem-sadr,
+  .poem-ajuz {
+    width: 82%;
     font-size: 1rem;
     line-height: 1.9;
-    text-align: center !important;
-  }
-
-  .shatr.ajuz {
-    margin-top: 2px;
   }
 }
-
 /* ===== النصوص داخل المقال ===== */
 
 .prose {

@@ -99,22 +99,22 @@ function renderPoem(body: string) {
     .filter(Boolean);
 
   return (
-    <div className="space-y-0">
+    <div className="poem-wrapper">
       {lines.map((line, index) => {
         const [sadr, ajuz] = line.split("|").map((part) => part?.trim() || "");
 
         return (
           <div key={index} className="poem-line-block">
-            <div className="poem-row">
-              <div className="shatr sadr">{sadr}</div>
-              <div className="shatr ajuz">{ajuz}</div>
-            </div>
+            <div className="poem-sadr">{sadr}</div>
+            {ajuz ? <div className="poem-ajuz">{ajuz}</div> : null}
           </div>
         );
       })}
     </div>
   );
 }
+
+
 function renderArticleTable(tableHtml?: string | null) {
   if (!tableHtml || !tableHtml.trim()) return null;
 
