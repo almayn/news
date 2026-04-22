@@ -4,6 +4,8 @@ import ShareButtons from "../../components/ShareButtons";
 import AdminEditButton from "../../components/AdminEditButton";
 import ArticleBackButton from "../../components/ArticleBackButton";
 import type { Metadata } from "next";
+import ArticleComments from "../../components/ArticleComments";
+import XEmbed from "../../components/XEmbed";
 
 interface Article {
   id: string;
@@ -16,6 +18,7 @@ interface Article {
   created_at: string;
   category: string;
   source?: string | null;
+  source_url?: string | null;
   author?: string | null;
   is_poem?: boolean | null;
   table_html?: string | null;
@@ -91,7 +94,6 @@ export async function generateMetadata({
   };
 }
 
-// 👇 دالة تنسيق الشعر
 function renderPoem(body: string) {
   const lines = body
     .split("\n")
@@ -114,17 +116,38 @@ function renderPoem(body: string) {
   );
 }
 
-
 function renderArticleTable(tableHtml?: string | null) {
   if (!tableHtml || !tableHtml.trim()) return null;
 
   return (
     <div
-      className="article-table-wrap"
+      className="article-table-wrap mt-10"
       dangerouslySetInnerHTML={{ __html: tableHtml }}
     />
   );
 }
+
+function extractTweetUrlFromBody(body: string = ""): string | null {
+  const plain = body
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const match = plain.match(
+    /https?:\/\/(www\.)?(twitter\.com|x\.com)\/[^\s/]+\/status\/\d+/i
+  );
+
+  return match ? match[0] : null;
+}
+
+
+function removeTweetUrlFromBody(body: string = ""): string {
+  return body.replace(
+    /https?:\/\/(www\.)?(twitter\.com|x\.com)\/[^\s<]+\/status\/\d+[^\s<]*/gi,
+    ""
+  );
+}
+
 async function getArticle(id: string): Promise<Article | null> {
   const { data, error } = await supabase
     .from("news_posts")
@@ -139,6 +162,7 @@ async function getArticle(id: string): Promise<Article | null> {
     category: data.category || "عام",
     body: data.body || data.content || "لا يوجد تفاصيل للخبر.",
     source: data.source || "أخبار الماس",
+    source_url: data.source_url || null,
     is_poem: data.is_poem || false,
   };
 }
@@ -155,136 +179,192 @@ export default async function NewsDetailsPage({
     notFound();
   }
 
+  const embeddedTweetUrl = extractTweetUrlFromBody(article.body || "");
+  const bodyWithoutTweetUrl = removeTweetUrlFromBody(article.body || "");
+
+
+  const formattedDate = new Date(article.created_at).toLocaleDateString(
+    "ar-SA",
+    {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }
+  );
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-4xl px-4 py-8 md:py-12">
-        <ArticleBackButton />
+      <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-10">
+        <div className="mb-5 md:mb-7">
+          <ArticleBackButton />
+        </div>
 
-        <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <article className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
           {article.category !== "مقالات" && article.image_url && (
-            <div className="relative overflow-hidden">
+            <div className="relative overflow-hidden border-b border-slate-200 bg-slate-100">
               <img
                 src={article.image_url}
                 alt={article.title}
-                className="h-[260px] w-full object-cover md:h-[460px]"
+                className="h-[240px] w-full object-cover md:h-[420px] lg:h-[500px]"
               />
+
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent" />
 
               <img
                 src="https://gjryvqpwncnkpghaiytl.supabase.co/storage/v1/object/public/fonts/almassslogo.png"
                 alt="علامة مائية"
-                className="pointer-events-none absolute bottom-3 left-3 z-20 w-[68px] opacity-75 drop-shadow-xl"
+                className="pointer-events-none absolute bottom-4 left-4 z-20 w-[74px] opacity-80 drop-shadow-[0_10px_20px_rgba(0,0,0,0.28)] md:bottom-6 md:left-6 md:w-[95px]"
               />
             </div>
           )}
 
-          <div className="p-6 md:p-10">
-            <div className="mb-5 flex flex-wrap items-center gap-3 text-sm font-black">
-              <span className="rounded-full bg-primary-50 px-4 py-2 text-primary-700">
+          <div className="p-5 md:p-8 lg:p-10">
+            <div className="mb-5 flex flex-wrap items-center gap-2.5 text-xs font-black md:gap-3 md:text-sm">
+              <span className="rounded-full border border-[#c8a96b]/25 bg-amber-50 px-3.5 py-2 text-amber-700">
                 {article.category}
               </span>
 
-              <span className="text-slate-400">
-                {new Date(article.created_at).toLocaleDateString("ar-SA")}
+              <span className="rounded-full bg-slate-100 px-3.5 py-2 text-slate-500">
+                {formattedDate}
               </span>
 
-              <span className="text-slate-500">
+              <span className="rounded-full bg-slate-100 px-3.5 py-2 text-slate-600">
                 {article.source || "أخبار الماس"}
               </span>
-
-              {/* ✅ تم حذف عرض اسم الكاتب من هنا لتجنب التكرار */}
             </div>
 
             {article.category === "مقالات" && (
-              <div className="mb-6 flex items-center gap-4 rounded-2xl border border-[#c8a96b]/20 bg-amber-50/40 p-4">
+              <div className="mb-7 flex items-center gap-4 rounded-[24px] border border-[#c8a96b]/20 bg-gradient-to-l from-amber-50/80 to-white p-4 md:p-5">
                 <div className="shrink-0">
                   {article.author_image ? (
                     <img
                       src={article.author_image}
                       alt={article.author || "صورة الكاتب"}
-                      className="h-16 w-16 rounded-full object-cover border-2 border-[#c8a96b] shadow-sm"
+                      className="h-16 w-16 rounded-full border-2 border-[#c8a96b] object-cover shadow-sm md:h-20 md:w-20"
                     />
                   ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#c8a96b] bg-white text-2xl text-slate-400 shadow-sm">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#c8a96b] bg-white text-2xl text-slate-400 shadow-sm md:h-20 md:w-20">
                       ✍
                     </div>
                   )}
                 </div>
 
                 <div className="min-w-0">
-                  <p className="mb-1 text-xs font-bold text-slate-500">الكاتب</p>
-                  <p className="text-lg font-black text-slate-900">
+                  <p className="mb-1 text-xs font-bold text-slate-500 md:text-sm">
+                    الكاتب
+                  </p>
+                  <p className="text-lg font-black text-slate-900 md:text-2xl">
                     {article.author || "أخبار الماس"}
                   </p>
                 </div>
               </div>
             )}
 
-            {article.sub_title && (
-              <p className="mb-3 text-xl font-black leading-9 text-amber-600 md:text-2xl">
-                {article.sub_title}
-              </p>
-            )}
+            <header className="mb-8 border-b border-slate-100 pb-6 md:pb-8">
+              {article.sub_title && (
+                <p className="mb-3 text-lg font-black leading-9 text-amber-600 md:text-2xl">
+                  {article.sub_title}
+                </p>
+              )}
 
-            <h1 className="mb-6 text-3xl font-black leading-tight text-slate-900 md:text-5xl">
-              {article.title}
-            </h1>
+              <h1 className="text-3xl font-black leading-[1.25] text-slate-950 md:text-5xl md:leading-[1.2]">
+                {article.title}
+              </h1>
 
-            <div className="mb-8">
-              <AdminEditButton articleId={article.id} />
-            </div>
-
-    {article.is_poem ? (
-  <div className="poem-wrapper">
-    {renderPoem(article.body)}
-  </div>
-) : (
-  <>
-    <div
-      className="
-        prose max-w-none
-        whitespace-pre-wrap
-        text-[20px] md:text-[21px] leading-[1.8] md:leading-[2] text-slate-800
-        prose-p:mb-6
-        prose-headings:text-slate-900 prose-headings:font-black
-        prose-h2:text-3xl prose-h2:mt-10 prose-h2:mb-5 prose-h2:border-r-4 prose-h2:border-amber-500 prose-h2:pr-4
-        prose-h3:text-2xl prose-h3:mt-8
-        prose-a:text-blue-700 prose-a:font-bold prose-a:underline-offset-8
-        prose-blockquote:border-r-4 prose-blockquote:border-[#c8a96b]
-        prose-blockquote:bg-slate-50 prose-blockquote:pr-6 prose-blockquote:py-2
-        prose-blockquote:text-slate-700 prose-blockquote:not-italic
-        prose-li:my-2 prose-strong:text-slate-950
-      "
-      dangerouslySetInnerHTML={{ __html: article.body }}
-    />
-
-    {renderArticleTable(article.table_html)}
-  </>
-)}
-
-            
-            {article.extra_images && article.extra_images.length > 0 && (
-              <div className="mt-10 space-y-4">
-                <h3 className="text-lg font-black text-slate-900">صور إضافية</h3>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {article.extra_images.map((img, index) => (
-                    <div key={index} className="overflow-hidden rounded-2xl">
-                      <img
-                        src={img}
-                        alt={`صورة ${index + 1}`}
-                        className="h-64 w-full object-cover transition hover:scale-105"
-                      />
-                    </div>
-                  ))}
-                </div>
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <AdminEditButton articleId={article.id} />
               </div>
-            )}
+            </header>
+
+            <section className="space-y-8">
+              {article.is_poem ? (
+                <div className="rounded-[28px] bg-slate-50/70 px-4 py-6 ring-1 ring-slate-100 md:px-8 md:py-8">
+                  {renderPoem(article.body)}
+                </div>
+              ) : (
+                <>
+                  <div
+                    className="
+                      prose prose-slate max-w-none
+                      whitespace-pre-wrap
+                      text-[19px] leading-[1.95] text-slate-800 md:text-[21px] md:leading-[2.05]
+                      prose-p:mb-6
+                      prose-headings:font-black prose-headings:text-slate-900
+                      prose-h2:mt-12 prose-h2:mb-5 prose-h2:border-r-4 prose-h2:border-amber-500 prose-h2:pr-4 prose-h2:text-3xl
+                      prose-h3:mt-8 prose-h3:text-2xl
+                      prose-a:font-bold prose-a:text-blue-700 prose-a:underline-offset-8
+                      prose-blockquote:border-r-4 prose-blockquote:border-[#c8a96b]
+                      prose-blockquote:bg-slate-50 prose-blockquote:py-3 prose-blockquote:pr-6
+                      prose-blockquote:not-italic prose-blockquote:text-slate-700
+                      prose-li:my-2
+                      prose-strong:text-slate-950
+                    "
+                    dangerouslySetInnerHTML={{ __html: bodyWithoutTweetUrl }}
+                  />
+
+           {embeddedTweetUrl && <XEmbed tweetUrl={embeddedTweetUrl} />}
+
+                  {article.source_url && (
+                    <div className="mt-6 flex justify-center">
+                      <a
+                        href={article.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                      >
+                        <span className="text-slate-500">المصدر</span>
+                        <span className="text-slate-400">|</span>
+                        <span className="text-blue-700">
+                          {article.source || "المصدر"}
+                        </span>
+                      </a>
+                    </div>
+                  )}
+
+                  {renderArticleTable(article.table_html)}
+                </>
+              )}
+
+              {article.extra_images && article.extra_images.length > 0 && (
+                <section className="mt-10 border-t border-slate-100 pt-8">
+                  <div className="mb-5 flex items-center justify-between">
+                    <h3 className="text-lg font-black text-slate-900 md:text-xl">
+                      صور إضافية
+                    </h3>
+                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500">
+                      {article.extra_images.length} صورة
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {article.extra_images.map((img, index) => (
+                      <div
+                        key={index}
+                        className="overflow-hidden rounded-[22px] border border-slate-200 bg-slate-50"
+                      >
+                        <img
+                          src={img}
+                          alt={`صورة ${index + 1}`}
+                          className="h-64 w-full object-cover transition duration-300 hover:scale-[1.03]"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </section>
           </div>
 
-          <ShareButtons
-            url={`https://almasyn.com/news/${article.id}`}
-            title={article.title}
-          />
+          <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-5 md:px-8 md:py-6">
+            <ShareButtons
+              url={`https://almasyn.com/news/${article.id}`}
+              title={article.title}
+            />
+          </div>
+
+          <div className="px-5 pb-8 md:px-8 md:pb-10">
+            <ArticleComments articleId={article.id} />
+          </div>
         </article>
       </div>
     </div>

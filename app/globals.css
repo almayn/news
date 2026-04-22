@@ -20,6 +20,16 @@
   }
 }
 
+@font-face {
+  font-family: "LamaSans";
+  src: url("/fonts/LamaSans.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "STC";
+  src: url("/fonts/STC.ttf") format("truetype");
+}
 /* ====== BASE ====== */
 
 body {

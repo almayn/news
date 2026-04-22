@@ -183,28 +183,54 @@ export default function EditorListPage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="mb-2 text-sm font-black text-[#c8a96b]">إدارة الأخبار</p>
-                <h1 className="text-2xl font-black md:text-3xl">لوحة أخبار الماس</h1>
+                <h1 className="text-2xl font-black md:text-3xl">لوحة  التحكم</h1>
                 <p className="mt-2 text-sm font-medium text-slate-200 md:text-base">
-                  استعراض الأخبار وتعديلها وتثبيتها أو حذفها
-                </p>
+استعراض النحتوى                </p>
               </div>
+             <div className="flex flex-wrap items-center gap-2">
 
-              <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  href="/editor"
-                  className="rounded-full bg-white/10 px-4 py-2 text-sm font-black text-white backdrop-blur transition hover:bg-white/20"
-                >
-                  إضافة خبر جديد
-                </Link>
+  {/* زر أساسي */}
+  <Link
+    href="/editor"
+    className="rounded-full bg-[#c8a96b] px-5 py-2 text-sm font-black text-slate-950 shadow-md transition hover:bg-[#d6b57a]"
+  >
+    + إضافة خبر
+  </Link>
 
-                <button
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-black text-white transition hover:bg-red-700 disabled:opacity-60"
-                >
-                  {isLoggingOut ? "جارٍ الخروج..." : "تسجيل الخروج"}
-                </button>
-              </div>
+  {/* جامع الأخبار */}
+  <Link
+    href="/editor/collector"
+    className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20"
+  >
+    📡 جامع الأخبار
+  </Link>
+
+  {/* المناسبات */}
+  <Link
+    href="/editor/occasions"
+    className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20"
+  >
+    🎉 المناسبات
+  </Link>
+
+  {/* التعليقات */}
+  <Link
+    href="/editor/comments"
+    className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20"
+  >
+    💬 التعليقات
+  </Link>
+
+  {/* تسجيل الخروج */}
+  <button
+    onClick={handleLogout}
+    disabled={isLoggingOut}
+    className="ml-auto rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
+  >
+    {isLoggingOut ? "جارٍ الخروج..." : "تسجيل الخروج"}
+  </button>
+
+</div>
             </div>
           </div>
 
