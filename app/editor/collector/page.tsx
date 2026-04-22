@@ -28,9 +28,21 @@ type PublishState = {
 
 const CATEGORY_OPTIONS = ["عام", "منوعات", "رياضة", "مجتمع", "مقالات"];
 
+const SOURCE_BUTTONS = [
+  "all",
+  "عكاظ",
+  "المدينة",
+  "سبق",
+  "العربية",
+  "الرياضية",
+  "سبورت 24",
+  "اخبار24",
+] as const;
+
 export default function CollectorPage() {
   const [data, setData] = useState<CollectorItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetchingSource, setFetchingSource] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryMap, setCategoryMap] = useState<Record<number, string>>({});
@@ -48,7 +60,14 @@ export default function CollectorPage() {
         cache: "no-store",
       });
 
-      const json = await res.json();
+      const rawText = await res.text();
+      let json: any = null;
+
+      try {
+        json = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        throw new Error("تعذر قراءة بيانات الجامع من السيرفر");
+      }
 
       if (!res.ok) {
         throw new Error(json?.error || "فشل في جلب الأخبار");
@@ -64,9 +83,9 @@ export default function CollectorPage() {
     }
   };
 
-  const fetchNewFromSources = async () => {
+  const fetchNewFromSources = async (source: string = "all") => {
     try {
-      setLoading(true);
+      setFetchingSource(source);
       setNotice("");
 
       const res = await fetch("/api/collector/fetch", {
@@ -74,18 +93,40 @@ export default function CollectorPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({ source }),
       });
 
-      const json = await res.json();
+      const rawText = await res.text();
+      let json: any = null;
+
+      try {
+        json = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        console.error("RAW collector response:", rawText);
+        throw new Error("الراوت رجّع ردًا غير مفهوم، غالبًا بسبب timeout أو خطأ من المصدر");
+      }
 
       if (!res.ok) {
         throw new Error(json?.error || "فشل في تحديث الأخبار");
       }
 
+      const failedSources = Array.isArray(json?.failed) ? json.failed : [];
+      const failedText =
+        failedSources.length > 0
+          ? ` — فشل: ${failedSources
+              .map((x: any) => x?.source)
+              .filter(Boolean)
+              .join("، ")}`
+          : "";
+
       setNotice(
-        `تم تحديث الأخبار${
-          typeof json?.inserted_now === "number" ? ` وإضافة ${json.inserted_now}` : ""
-        }`
+        `تم جلب ${
+          source === "all" ? "المصادر المحددة" : source
+        } بنجاح${
+          typeof json?.inserted_now === "number"
+            ? ` وإضافة ${json.inserted_now}`
+            : ""
+        }${failedText}`
       );
 
       await fetchData();
@@ -93,7 +134,7 @@ export default function CollectorPage() {
       console.error(error);
       setNotice(error instanceof Error ? error.message : "فشل في تحديث الأخبار");
     } finally {
-      setLoading(false);
+      setFetchingSource(null);
     }
   };
 
@@ -288,22 +329,38 @@ export default function CollectorPage() {
     }
   };
 
+  const getSourceButtonLabel = (source: string) => {
+    if (source === "all") return "جلب الكل";
+    return source;
+  };
+
   return (
     <div className="p-6" dir="rtl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-black">جامع الأخبار</h1>
 
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={fetchNewFromSources}
-            className="rounded-full bg-blue-700 px-5 py-2 text-white"
-          >
-            تحديث الأخبار
-          </button>
+          {SOURCE_BUTTONS.map((source) => {
+            const active = fetchingSource === source;
+
+            return (
+              <button
+                key={source}
+                onClick={() => fetchNewFromSources(source)}
+                disabled={fetchingSource !== null}
+                className={`rounded-full px-4 py-2 text-sm font-bold text-white transition disabled:opacity-60 ${
+                  source === "all" ? "bg-blue-700" : "bg-slate-700"
+                }`}
+              >
+                {active ? "جاري الجلب..." : getSourceButtonLabel(source)}
+              </button>
+            );
+          })}
 
           <button
             onClick={deleteAll}
-            className="rounded-full bg-red-700 px-5 py-2 text-white"
+            disabled={fetchingSource !== null || loading}
+            className="rounded-full bg-red-700 px-5 py-2 text-white disabled:opacity-60"
           >
             حذف الكل من القاعدة
           </button>
