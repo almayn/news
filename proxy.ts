@@ -6,7 +6,7 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isProtected =
-    pathname === "/editor" || pathname.startsWith("/editor/");
+    pathname === "/editor" || pathname.startsWith("/editor/") ||\n    pathname === "/compact" || pathname.startsWith("/compact/");
 
   if (!isProtected) {
     return NextResponse.next();
@@ -25,5 +25,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/editor/:path*"],
+  matcher: ["/editor/:path*", "/compact/:path*"],
 };
